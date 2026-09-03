@@ -1,5 +1,6 @@
 "use client";
-
+import SeaIceLayer from "./SeaIceLayer";
+import SeaIceLegend from "./SeaIceLegend";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -234,7 +235,7 @@ export default function AntarcticMap() {
             tileSize={512}
             noWrap={true}
           />
-
+             <SeaIceLayer />
           {/* Vessel Detection Radius */}
           <Circle
             center={vessel.position}
@@ -327,6 +328,7 @@ export default function AntarcticMap() {
               </Tooltip>
             </Marker>
           ))}
+           <SeaIceLegend />
         </MapContainer>
 
         {/* Projection Information */}
