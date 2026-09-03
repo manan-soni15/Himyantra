@@ -1,16 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Tooltip } from "react-leaflet";
+
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Tooltip,
+  Popup,
+  Circle,
+} from "react-leaflet";
+
 import L from "leaflet";
+
 import "proj4leaflet";
+
 import { Maximize2, Minimize2 } from "lucide-react";
 
 // Antarctic Polar Stereographic Projection
 const antarcticCRS = new L.Proj.CRS(
   "EPSG:3031",
+
   "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 " +
     "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
+
   {
     origin: [-4194304, 4194304],
 
@@ -49,7 +62,7 @@ const antarcticLocations = [
   },
   {
     name: "Rothera Research Station",
-    position: [-67.5681, -68.1300],
+    position: [-67.5681, -68.13],
   },
   {
     name: "Davis Research Station",
@@ -65,17 +78,31 @@ const antarcticLocations = [
   },
   {
     name: "Vostok Station",
-    position: [-78.4645, 106.8340],
+    position: [-78.4645, 106.834],
   },
   {
     name: "Neumayer Station",
-    position: [-70.6730, -8.2740],
+    position: [-70.673, -8.274],
   },
 ];
 
-// Custom location marker
+// Research Vessel Data
+const vessel = {
+  name: "RV HIMYANTRA-01",
+
+  // Demo vessel position in Antarctic waters
+  position: [-68.5, 78.5],
+
+  heading: "South-East",
+  speed: "12.4 knots",
+
+  status: "Navigating",
+};
+
+// Custom Antarctic location marker
 const locationIcon = L.divIcon({
   className: "antarctic-location-marker",
+
   html: `
     <div style="
       width: 10px;
@@ -86,12 +113,53 @@ const locationIcon = L.divIcon({
       box-shadow: 0 0 10px rgba(103,232,249,0.8);
     "></div>
   `,
+
   iconSize: [10, 10],
   iconAnchor: [5, 5],
 });
 
+// Custom Research Vessel Marker
+const vesselIcon = L.divIcon({
+  className: "vessel-marker",
+
+  html: `
+    <div style="
+      position: relative;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+
+      <div style="
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 2px solid rgba(34,211,238,0.7);
+        animation: pulse 2s infinite;
+      "></div>
+
+      <div style="
+        position: relative;
+        font-size: 24px;
+        transform: rotate(45deg);
+        filter: drop-shadow(0 0 7px rgba(34,211,238,0.9));
+      ">
+        🚢
+      </div>
+
+    </div>
+  `,
+
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
+
 export default function AntarcticMap() {
   const mapRef = useRef(null);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Resize Leaflet map when fullscreen mode changes
@@ -118,7 +186,7 @@ export default function AntarcticMap() {
       }
     >
       <div className="relative h-full w-full overflow-hidden rounded-xl">
-        
+
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
@@ -142,6 +210,7 @@ export default function AntarcticMap() {
           zoomControl={true}
           ref={mapRef}
         >
+
           {/* NASA Antarctic Basemap */}
           <TileLayer
             url="https://gibs.earthdata.nasa.gov/wmts/epsg3031/best/BlueMarble_ShadedRelief_Bathymetry/default/500m/{z}/{y}/{x}.jpeg"
@@ -149,6 +218,58 @@ export default function AntarcticMap() {
             tileSize={512}
             noWrap={true}
           />
+
+          {/* Vessel Detection Radius */}
+          <Circle
+            center={vessel.position}
+            radius={25000}
+            pathOptions={{
+              color: "#22d3ee",
+              fillColor: "#22d3ee",
+              fillOpacity: 0.05,
+              weight: 1,
+            }}
+          />
+
+          {/* Research Vessel */}
+          <Marker
+            position={vessel.position}
+            icon={vesselIcon}
+          >
+            <Tooltip
+              permanent
+              direction="bottom"
+              offset={[0, 22]}
+            >
+              🚢 {vessel.name}
+            </Tooltip>
+
+            <Popup>
+              <div style={{ minWidth: "180px" }}>
+                <strong>{vessel.name}</strong>
+
+                <hr />
+
+                <p>
+                  <b>Status:</b> {vessel.status}
+                </p>
+
+                <p>
+                  <b>Speed:</b> {vessel.speed}
+                </p>
+
+                <p>
+                  <b>Heading:</b> {vessel.heading}
+                </p>
+
+                <p>
+                  <b>Position:</b>
+                  <br />
+                  {vessel.position[0]}°, {vessel.position[1]}°
+                </p>
+              </div>
+            </Popup>
+          </Marker>
 
           {/* Antarctic Locations */}
           {antarcticLocations.map((location) => (
@@ -167,12 +288,14 @@ export default function AntarcticMap() {
               </Tooltip>
             </Marker>
           ))}
+
         </MapContainer>
 
         {/* Projection Information */}
         <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] rounded-md border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs text-slate-400 backdrop-blur">
           EPSG:3031 • Antarctic Polar Projection
         </div>
+
       </div>
     </div>
   );
