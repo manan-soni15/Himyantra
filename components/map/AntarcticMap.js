@@ -23,12 +23,7 @@ const antarcticCRS = new L.Proj.CRS(
   "EPSG:3031",
 
   "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 " +
-<<<<<<< HEAD
   "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-=======
-    "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-
->>>>>>> 070a1284ab730b838684fd065c073d5dfaa0782b
   {
     origin: [-4194304, 4194304],
     resolutions: [
@@ -121,27 +116,6 @@ const locationIcon = L.divIcon({
   iconSize: [10, 10],
   iconAnchor: [5, 5],
 });
-
-<<<<<<< HEAD
-// Custom iceberg marker
-const icebergIcon = L.divIcon({
-  className: "iceberg-marker",
-  html: `
-    <div style="
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      font-size: 24px;
-      filter: drop-shadow(0 0 6px rgba(34,211,238,0.9));
-    ">
-      🧊
-    </div>
-  `,
-  iconSize: [30, 30],
-  iconAnchor: [15, 15],
-=======
 // Custom Research Vessel Marker
 const vesselIcon = L.divIcon({
   className: "vessel-marker",
@@ -168,7 +142,6 @@ const vesselIcon = L.divIcon({
       <div style="
         position: relative;
         font-size: 24px;
-        transform: rotate(45deg);
         filter: drop-shadow(0 0 7px rgba(34,211,238,0.9));
       ">
         🚢
@@ -179,7 +152,26 @@ const vesselIcon = L.divIcon({
 
   iconSize: [44, 44],
   iconAnchor: [22, 22],
->>>>>>> 070a1284ab730b838684fd065c073d5dfaa0782b
+});
+
+// Custom iceberg marker
+const icebergIcon = L.divIcon({
+  className: "iceberg-marker",
+  html: `
+    <div style="
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      font-size: 24px;
+      filter: drop-shadow(0 0 6px rgba(34,211,238,0.9));
+    ">
+      🧊
+    </div>
+  `,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
 });
 
 export default function AntarcticMap() {
@@ -211,10 +203,6 @@ export default function AntarcticMap() {
       }
     >
       <div className="relative h-full w-full overflow-hidden rounded-xl">
-<<<<<<< HEAD
-=======
-
->>>>>>> 070a1284ab730b838684fd065c073d5dfaa0782b
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
@@ -317,7 +305,6 @@ export default function AntarcticMap() {
             </Marker>
           ))}
 
-<<<<<<< HEAD
           {/* Iceberg Locations */}
           {icebergs.map((iceberg) => (
             <Marker
@@ -340,8 +327,6 @@ export default function AntarcticMap() {
               </Tooltip>
             </Marker>
           ))}
-=======
->>>>>>> 070a1284ab730b838684fd065c073d5dfaa0782b
         </MapContainer>
 
         {/* Projection Information */}
