@@ -14,7 +14,6 @@ const antarcticCRS = new L.Proj.CRS(
   "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   {
     origin: [-4194304, 4194304],
-
     resolutions: [
       8192,
       4096,
@@ -50,7 +49,7 @@ const antarcticLocations = [
   },
   {
     name: "Rothera Research Station",
-    position: [-67.5681, -68.1300],
+    position: [-67.5681, -68.13],
   },
   {
     name: "Davis Research Station",
@@ -66,11 +65,11 @@ const antarcticLocations = [
   },
   {
     name: "Vostok Station",
-    position: [-78.4645, 106.8340],
+    position: [-78.4645, 106.834],
   },
   {
     name: "Neumayer Station",
-    position: [-70.6730, -8.2740],
+    position: [-70.673, -8.274],
   },
 ];
 
@@ -139,7 +138,6 @@ export default function AntarcticMap() {
       }
     >
       <div className="relative h-full w-full overflow-hidden rounded-xl">
-
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
@@ -188,6 +186,7 @@ export default function AntarcticMap() {
               </Tooltip>
             </Marker>
           ))}
+
           {/* Iceberg Locations */}
           {icebergs.map((iceberg) => (
             <Marker
