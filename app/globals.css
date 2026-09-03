@@ -95,7 +95,10 @@ textarea:focus-visible {
 .animate-fade-in-up {
   animation: fade-in-up 0.6s ease-out both;
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 070a1284ab730b838684fd065c073d5dfaa0782b
 @keyframes pulse {
   0% {
     transform: scale(0.6);
