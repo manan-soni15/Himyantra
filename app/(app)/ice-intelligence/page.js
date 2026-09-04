@@ -1,5 +1,5 @@
 'use client';
-
+import { useEffect } from "react";
 import { useState } from 'react';
 import { Snowflake, Gauge, LineChart, Route, TableIcon, Compass, Navigation, Ship, ShieldCheck, AlertTriangle, Info, ChevronDown, MapPin } from 'lucide-react';
 import dynamic from 'next/dynamic';
