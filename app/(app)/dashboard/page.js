@@ -194,7 +194,7 @@ export default function DashboardPage() {
 
         {/* Iceberg Threat Warnings */}
         <SectionCard
-          title="Active Iceberg Threat Warnings"
+          title="Active Threat Warnings"
           icon={ShieldAlert}
         >
           <div className="space-y-2 text-xs">

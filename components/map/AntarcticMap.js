@@ -1,7 +1,11 @@
 "use client";
+
+import ResearchStationsLayer from "./ResearchStationsLayer";
 import SeaIceLayer from "./SeaIceLayer";
 import SeaIceLegend from "./SeaIceLegend";
+
 import { useEffect, useRef, useState } from "react";
+
 import {
   MapContainer,
   TileLayer,
@@ -9,18 +13,26 @@ import {
   Tooltip,
   Popup,
   Circle,
+  Polyline,
 } from "react-leaflet";
+
 import L from "leaflet";
 import "proj4leaflet";
+
 import { Maximize2, Minimize2 } from "lucide-react";
+
 import { icebergs } from "../../data/icebergs";
 import { useVessel } from "../../context/VesselContext";
 
-// Antarctic Polar Stereographic Projection
+/* =========================================================
+   Antarctic Polar Stereographic Projection
+   EPSG:3031
+========================================================= */
+
 const antarcticCRS = new L.Proj.CRS(
   "EPSG:3031",
   "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 " +
-  "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
+    "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   {
     origin: [-4194304, 4194304],
     resolutions: [
@@ -46,60 +58,79 @@ const antarcticCRS = new L.Proj.CRS(
   }
 );
 
-// Important Antarctic locations for HIMYANTRA
+/* =========================================================
+   Antarctic Research Locations
+========================================================= */
+
 const antarcticLocations = [
   {
     name: "McMurdo Station",
     position: [-77.8419, 166.6863],
+    country: "United States",
   },
   {
     name: "Amundsen-Scott South Pole Station",
     position: [-90, 0],
+    country: "United States",
   },
   {
     name: "Rothera Research Station",
     position: [-67.5681, -68.13],
+    country: "United Kingdom",
   },
   {
     name: "Davis Research Station",
     position: [-68.5766, 77.9674],
+    country: "Australia",
   },
   {
     name: "Mawson Research Station",
     position: [-67.6027, 62.8797],
+    country: "Australia",
   },
   {
     name: "Casey Research Station",
     position: [-66.2821, 110.5276],
+    country: "Australia",
   },
   {
     name: "Vostok Station",
     position: [-78.4645, 106.834],
+    country: "Russia",
   },
   {
     name: "Neumayer Station",
     position: [-70.673, -8.274],
+    country: "Germany",
   },
 ];
 
-// Custom Antarctic location marker
+/* =========================================================
+   Research Station Marker
+========================================================= */
+
 const locationIcon = L.divIcon({
   className: "antarctic-location-marker",
   html: `
     <div style="
-      width: 10px;
-      height: 10px;
-      background: #67e8f9;
+      width: 11px;
+      height: 11px;
+      background: #22d3ee;
       border: 2px solid #ffffff;
       border-radius: 50%;
-      box-shadow: 0 0 10px rgba(103,232,249,0.8);
+      box-shadow:
+        0 0 0 2px rgba(34,211,238,0.18),
+        0 0 10px rgba(34,211,238,0.75);
     "></div>
   `,
-  iconSize: [10, 10],
-  iconAnchor: [5, 5],
+  iconSize: [11, 11],
+  iconAnchor: [5.5, 5.5],
 });
 
-// Custom Research Vessel Marker
+/* =========================================================
+   Research Vessel Marker
+========================================================= */
+
 const vesselIcon = L.divIcon({
   className: "vessel-marker",
   html: `
@@ -111,6 +142,7 @@ const vesselIcon = L.divIcon({
       align-items: center;
       justify-content: center;
     ">
+
       <div style="
         position: absolute;
         width: 44px;
@@ -119,6 +151,7 @@ const vesselIcon = L.divIcon({
         border: 2px solid rgba(34,211,238,0.7);
         animation: pulse 2s infinite;
       "></div>
+
       <div style="
         position: relative;
         font-size: 24px;
@@ -126,13 +159,17 @@ const vesselIcon = L.divIcon({
       ">
         🚢
       </div>
+
     </div>
   `,
   iconSize: [44, 44],
   iconAnchor: [22, 22],
 });
 
-// Custom iceberg marker
+/* =========================================================
+   Iceberg Marker
+========================================================= */
+
 const icebergIcon = L.divIcon({
   className: "iceberg-marker",
   html: `
@@ -152,12 +189,21 @@ const icebergIcon = L.divIcon({
   iconAnchor: [15, 15],
 });
 
+/* =========================================================
+   Component
+========================================================= */
+
 export default function AntarcticMap() {
   const mapRef = useRef(null);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
+
   const { activeVessel } = useVessel();
 
-  // Active vessel telemetry map object
+  /* =======================================================
+     Active Vessel Telemetry
+  ======================================================= */
+
   const vessel = {
     name: activeVessel.name,
     position: activeVessel.currentPosition,
@@ -166,7 +212,10 @@ export default function AntarcticMap() {
     status: activeVessel.status || "Navigating",
   };
 
-  // Resize Leaflet map when fullscreen mode changes
+  /* =======================================================
+     Resize Leaflet map after fullscreen change
+  ======================================================= */
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (mapRef.current) {
@@ -176,6 +225,10 @@ export default function AntarcticMap() {
 
     return () => clearTimeout(timeout);
   }, [isFullscreen]);
+
+  /* =======================================================
+     Fullscreen Toggle
+  ======================================================= */
 
   const toggleFullscreen = () => {
     setIsFullscreen((previous) => !previous);
@@ -190,10 +243,26 @@ export default function AntarcticMap() {
       }
     >
       <div className="relative h-full w-full overflow-hidden rounded-xl">
-        {/* Fullscreen Button */}
+
+        {/* =================================================
+            Fullscreen Button
+        ================================================= */}
+
         <button
           onClick={toggleFullscreen}
-          className="absolute right-4 top-4 z-[1000] flex h-10 w-10 items-center justify-center rounded-lg border border-slate-600 bg-slate-950/90 text-cyan-300 shadow-lg backdrop-blur transition hover:bg-slate-800"
+          className="
+            absolute right-4 top-4 z-[1000]
+            flex h-10 w-10 items-center justify-center
+            rounded-lg
+            border border-slate-200
+            bg-white/95
+            text-slate-600
+            shadow-lg
+            backdrop-blur
+            transition
+            hover:bg-slate-50
+            hover:text-cyan-600
+          "
           title={isFullscreen ? "Exit fullscreen" : "Maximize map"}
         >
           {isFullscreen ? (
@@ -202,6 +271,10 @@ export default function AntarcticMap() {
             <Maximize2 size={18} />
           )}
         </button>
+
+        {/* =================================================
+            MAP
+        ================================================= */}
 
         <MapContainer
           center={[-82, 0]}
@@ -212,28 +285,159 @@ export default function AntarcticMap() {
           className="h-full w-full"
           zoomControl={true}
           ref={mapRef}
+          style={{
+            background: "#dbeafe",
+          }}
         >
-          {/* NASA Antarctic Basemap */}
+
+          {/* =================================================
+              NASA ANTARCTIC BASEMAP
+
+              Restored to full opacity so the ocean
+              has the original blue appearance.
+          ================================================= */}
+
           <TileLayer
             url="https://gibs.earthdata.nasa.gov/wmts/epsg3031/best/BlueMarble_ShadedRelief_Bathymetry/default/500m/{z}/{y}/{x}.jpeg"
             attribution="NASA GIBS"
             tileSize={512}
             noWrap={true}
+            opacity={1}
           />
-             <SeaIceLayer />
-          {/* Vessel Detection Radius */}
+
+          {/* =================================================
+              POLAR LATITUDE RINGS
+
+              80°S
+              70°S
+              60°S
+          ================================================= */}
+
+          <Circle
+            center={[-90, 0]}
+            radius={1112000}
+            pathOptions={{
+              color: "#94a3b8",
+              weight: 1,
+              opacity: 0.25,
+              fill: false,
+              dashArray: "4 7",
+            }}
+          />
+
+          <Circle
+            center={[-90, 0]}
+            radius={2224000}
+            pathOptions={{
+              color: "#94a3b8",
+              weight: 1,
+              opacity: 0.20,
+              fill: false,
+              dashArray: "4 7",
+            }}
+          />
+
+          <Circle
+            center={[-90, 0]}
+            radius={3336000}
+            pathOptions={{
+              color: "#94a3b8",
+              weight: 1,
+              opacity: 0.16,
+              fill: false,
+              dashArray: "4 7",
+            }}
+          />
+
+          {/* =================================================
+              SUBTLE MERIDIAN GUIDES
+          ================================================= */}
+
+          <Polyline
+            positions={[
+              [-60, 0],
+              [-90, 0],
+            ]}
+            pathOptions={{
+              color: "#cbd5e1",
+              weight: 1,
+              opacity: 0.18,
+              dashArray: "3 8",
+            }}
+          />
+
+          <Polyline
+            positions={[
+              [-60, 90],
+              [-90, 0],
+            ]}
+            pathOptions={{
+              color: "#cbd5e1",
+              weight: 1,
+              opacity: 0.15,
+              dashArray: "3 8",
+            }}
+          />
+
+          <Polyline
+            positions={[
+              [-60, -90],
+              [-90, 0],
+            ]}
+            pathOptions={{
+              color: "#cbd5e1",
+              weight: 1,
+              opacity: 0.15,
+              dashArray: "3 8",
+            }}
+          />
+
+          <Polyline
+            positions={[
+              [-60, 180],
+              [-90, 0],
+            ]}
+            pathOptions={{
+              color: "#cbd5e1",
+              weight: 1,
+              opacity: 0.15,
+              dashArray: "3 8",
+            }}
+          />
+
+          {/* =================================================
+              REAL SEA-ICE LAYER
+          ================================================= */}
+
+          <SeaIceLayer />
+
+          {/* =================================================
+              RESEARCH STATIONS LAYER
+          ================================================= */}
+
+          <ResearchStationsLayer />
+
+          {/* =================================================
+              VESSEL DETECTION RADIUS
+          ================================================= */}
+
           <Circle
             center={vessel.position}
             radius={25000}
             pathOptions={{
               color: "#22d3ee",
               fillColor: "#22d3ee",
-              fillOpacity: 0.05,
+              fillOpacity: 0.04,
               weight: 1,
+              opacity: 0.65,
+              dashArray: "5 5",
             }}
           />
 
-          {/* Research Vessel */}
+          {/* =================================================
+              RESEARCH VESSEL
+          ================================================= */}
+
           <Marker
             position={vessel.position}
             icon={vesselIcon}
@@ -242,33 +446,48 @@ export default function AntarcticMap() {
               permanent
               direction="bottom"
               offset={[0, 22]}
+              className="vessel-tooltip"
             >
               🚢 {vessel.name}
             </Tooltip>
 
             <Popup>
-              <div style={{ minWidth: "180px" }}>
+              <div style={{ minWidth: "200px" }}>
                 <strong>{vessel.name}</strong>
+
                 <hr />
+
                 <p>
                   <b>Status:</b> {vessel.status}
                 </p>
+
                 <p>
                   <b>Speed:</b> {vessel.speed}
                 </p>
+
                 <p>
                   <b>Heading:</b> {vessel.heading}
                 </p>
+
                 <p>
                   <b>Position:</b>
                   <br />
-                  {vessel.position[0]}°, {vessel.position[1]}°
+                  {vessel.position[0].toFixed(4)}°,{" "}
+                  {vessel.position[1].toFixed(4)}°
                 </p>
               </div>
             </Popup>
           </Marker>
 
-          {/* Antarctic Locations */}
+          {/* =================================================
+              RESEARCH STATIONS
+
+              Every station has:
+              - visible dot
+              - permanent name
+              - clickable information popup
+          ================================================= */}
+
           {antarcticLocations.map((location) => (
             <Marker
               key={location.name}
@@ -283,10 +502,40 @@ export default function AntarcticMap() {
               >
                 {location.name}
               </Tooltip>
+
+              <Popup>
+                <div style={{ minWidth: "200px" }}>
+                  <strong>{location.name}</strong>
+
+                  <hr />
+
+                  <p>
+                    <b>Country / Program:</b>
+                    <br />
+                    {location.country}
+                  </p>
+
+                  <p>
+                    <b>Facility:</b>
+                    <br />
+                    Antarctic Research Station
+                  </p>
+
+                  <p>
+                    <b>Coordinates:</b>
+                    <br />
+                    {location.position[0].toFixed(4)}°,{" "}
+                    {location.position[1].toFixed(4)}°
+                  </p>
+                </div>
+              </Popup>
             </Marker>
           ))}
 
-          {/* Iceberg Locations */}
+          {/* =================================================
+              ICEBERGS
+          ================================================= */}
+
           {icebergs.map((iceberg) => (
             <Marker
               key={iceberg.id}
@@ -300,21 +549,84 @@ export default function AntarcticMap() {
               >
                 <div>
                   <strong>{iceberg.name}</strong>
+
                   <br />
+
                   Area: {iceberg.area} km²
+
                   <br />
+
                   Status: {iceberg.status}
                 </div>
               </Tooltip>
             </Marker>
           ))}
-           <SeaIceLegend />
+
+          {/* =================================================
+              SEA-ICE LEGEND
+          ================================================= */}
+
+          <SeaIceLegend />
+
         </MapContainer>
 
-        {/* Projection Information */}
-        <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] rounded-md border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs text-slate-400 backdrop-blur">
-          EPSG:3031 • Antarctic Polar Projection
+        {/* =================================================
+            MAP TITLE
+
+            Positioned to the RIGHT of Leaflet's
+            zoom controls so it doesn't cover them.
+        ================================================= */}
+
+        <div
+          className="
+            pointer-events-none
+            absolute left-20 top-4
+            z-[1000]
+            rounded-lg
+            border border-slate-200
+            bg-white/95
+            px-3 py-2
+            shadow-md
+            backdrop-blur
+          "
+        >
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            HIMYANTRA
+          </div>
+
+          <div className="text-sm font-semibold text-slate-700">
+            Antarctic Operating Area
+          </div>
         </div>
+
+        {/* =================================================
+            PROJECTION INFORMATION
+        ================================================= */}
+
+        <div
+          className="
+            pointer-events-none
+            absolute bottom-4 left-4
+            z-[1000]
+            rounded-md
+            border border-slate-200
+            bg-white/95
+            px-3 py-2
+            text-[11px]
+            text-slate-500
+            shadow-md
+            backdrop-blur
+          "
+        >
+          <div className="font-medium text-slate-600">
+            EPSG:3031
+          </div>
+
+          <div>
+            Antarctic Polar Stereographic
+          </div>
+        </div>
+
       </div>
     </div>
   );
