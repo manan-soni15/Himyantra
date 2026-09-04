@@ -211,7 +211,11 @@ function MapViewController({ center }) {
    Component
 ========================================================= */
 
-export default function AntarcticMap({ activeTrajectory, activeIcebergId, showTrajectory = true }) {
+export default function AntarcticMap({
+  activeTrajectory,
+  activeIcebergId,
+  showTrajectory = false,
+}) {
   const mapRef = useRef(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -219,8 +223,12 @@ export default function AntarcticMap({ activeTrajectory, activeIcebergId, showTr
   const { activeVessel } = useVessel();
 
   // Compute map center target: active iceberg position if available, or vessel position
-  const activeCenter = activeTrajectory?.currentPosition || activeTrajectory?.predictedPath?.[0] 
-    ? [activeTrajectory.predictedPath[0].lat, activeTrajectory.predictedPath[0].lon]
+  const activeCenter =
+  showTrajectory && activeTrajectory?.predictedPath?.length
+    ? [
+        activeTrajectory.predictedPath[0].lat,
+        activeTrajectory.predictedPath[0].lon,
+      ]
     : activeVessel?.currentPosition || [-64, -55];
 
   /* =======================================================

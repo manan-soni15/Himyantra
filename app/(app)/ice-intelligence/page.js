@@ -296,7 +296,11 @@ export default function IceIntelligencePage() {
         icon={Navigation}
         className="mt-6"
       >
-        <AntarcticMap activeTrajectory={activeTrajectory} activeIcebergId={selectedIcebergId} />
+        <AntarcticMap
+  activeTrajectory={activeTrajectory}
+  activeIcebergId={selectedIcebergId}
+  showTrajectory={true}
+/>
       </SectionCard>
 
       {/* Iceberg Intelligence & Interactive Trajectory Forecast */}
