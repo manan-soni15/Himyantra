@@ -1,0 +1,10 @@
+{
+  "model_name": "ConvLSTM Antarctic Sea-Ice Forecaster",
+  "target_variable": "Sea Ice Concentration (0-100%)",
+  "spatial_grid": "64x64 (25km resolution)",
+  "forecast_horizon": "7 Days",
+  "validation_rmse": 0.1035,
+  "validation_mae": 0.0739,
+  "prediction_accuracy_pct": 89.65,
+  "timestamp": "2026-09-04 05:39:41"
+}
