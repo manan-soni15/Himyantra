@@ -1,7 +1,128 @@
 // data/vessels.js
-// TODO: Populate with real vessels data once the corresponding backend/data source is connected.
-// This file intentionally exports empty/placeholder structures for the initial UI build.
+// Vessel registry with IMO polar code ice-class classifications (PC1 - PC7 & UNCLASSED)
 
-export const vessels = [];
+export const vessels = [
+  {
+    id: "RV-POLARSTERN-II",
+    name: "RV Polarstern II",
+    callsign: "DBFR",
+    mmsi: 211234000,
+    type: "Heavy Polar Icebreaker (PC1)",
+    iceClass: "PC1", // Year-round operation in all polar waters
+    maxSpeedKnots: 18.0,
+    draftMeters: 11.2,
+    displacementTons: 17300,
+    currentPosition: [-75.2, -26.5],
+    destination: "Neumayer Station III",
+    fuelCapacityTons: 3500,
+    status: "Underway",
+  },
+  {
+    id: "RSV-NUYINA",
+    name: "RSV Nuyina",
+    callsign: "VHMZ",
+    mmsi: 503000180,
+    type: "Polar Research Icebreaker (PC2)",
+    iceClass: "PC2", // Year-round operation in multi-year ice
+    maxSpeedKnots: 16.8,
+    draftMeters: 9.3,
+    displacementTons: 16000,
+    currentPosition: [-66.3, 110.5],
+    destination: "Casey Station",
+    fuelCapacityTons: 3100,
+    status: "Underway",
+  },
+  {
+    id: "MV-POLAR-EXPLORER",
+    name: "MV Polar Explorer",
+    callsign: "V7AR8",
+    mmsi: 311000123,
+    type: "Research Vessel / Icebreaker (PC3)",
+    iceClass: "PC3", // Year-round operation in second-year ice
+    maxSpeedKnots: 16.5,
+    draftMeters: 8.2,
+    displacementTons: 12500,
+    currentPosition: [-62.2, -58.9],
+    destination: "McMurdo Station",
+    fuelCapacityTons: 2400,
+    status: "Underway",
+  },
+  {
+    id: "RRS-SIR-DAVID-ATTENBOROUGH",
+    name: "RRS Sir David Attenborough",
+    callsign: "ZDLP3",
+    mmsi: 232025687,
+    type: "Polar Research Ship (PC4)",
+    iceClass: "PC4", // Year-round operation in thick first-year ice
+    maxSpeedKnots: 17.5,
+    draftMeters: 8.9,
+    displacementTons: 15600,
+    currentPosition: [-67.6, -68.1],
+    destination: "Rothera Research Station",
+    fuelCapacityTons: 2800,
+    status: "Underway",
+  },
+  {
+    id: "MV-ANTARCTIC-NAVIGATOR",
+    name: "MV Antarctic Navigator",
+    callsign: "C6YZ2",
+    mmsi: 311000456,
+    type: "Polar Supply Vessel (PC5)",
+    iceClass: "PC5", // Year-round operation in medium first-year ice
+    maxSpeedKnots: 14.0,
+    draftMeters: 7.5,
+    displacementTons: 9800,
+    currentPosition: [-64.8, -63.5],
+    destination: "Palmer Station",
+    fuelCapacityTons: 1800,
+    status: "Underway",
+  },
+  {
+    id: "SS-SOUTHERN-CROSS",
+    name: "SS Southern Cross",
+    callsign: "LAX99",
+    mmsi: 257000789,
+    type: "Expedition Cruise Vessel (PC6)",
+    iceClass: "PC6", // Summer/autumn operation in medium first-year ice
+    maxSpeedKnots: 15.0,
+    draftMeters: 5.8,
+    displacementTons: 7200,
+    currentPosition: [-54.8, -68.3],
+    destination: "Deception Island",
+    fuelCapacityTons: 1200,
+    status: "In Port (Ushuaia)",
+  },
+  {
+    id: "MV-ENDURANCE-TRADER",
+    name: "MV Endurance Trader",
+    callsign: "C6AB8",
+    mmsi: 311000888,
+    type: "Light Polar Cargo (PC7)",
+    iceClass: "PC7", // Summer/autumn operation in thin first-year ice
+    maxSpeedKnots: 13.5,
+    draftMeters: 6.8,
+    displacementTons: 8400,
+    currentPosition: [-58.2, -62.1],
+    destination: "King George Island",
+    fuelCapacityTons: 1400,
+    status: "Underway",
+  },
+  {
+    id: "MV-SOUTHERN-VOYAGER",
+    name: "MV Southern Voyager",
+    callsign: "3FEW9",
+    mmsi: 352000999,
+    type: "Standard Bulk Carrier (Unclassed)",
+    iceClass: "UNCLASSED", // Open water only / non-ice-strengthened
+    maxSpeedKnots: 13.0,
+    draftMeters: 10.5,
+    displacementTons: 24000,
+    currentPosition: [-51.7, -57.8],
+    destination: "Stanley, Falkland Islands",
+    fuelCapacityTons: 2100,
+    status: "Underway",
+  },
+];
 
+export const activeVessel = vessels[0];
 export default vessels;
