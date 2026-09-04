@@ -25,6 +25,7 @@ import { currentWeather } from "@/data/weather";
 import { candidateRoutes } from "@/data/routes";
 import { alerts } from "@/data/alerts";
 import { calculateRisk } from "@/lib/riskEngine";
+import { predictTrajectory } from "@/lib/trajectoryPrediction";
 import { useVessel } from "@/context/VesselContext";
 
 // Dynamically import Leaflet map because Leaflet only works in the browser
@@ -44,6 +45,7 @@ const AntarcticMap = dynamic(
 
 export default function DashboardPage() {
   const { activeVessel } = useVessel();
+  const activeTrajectory = predictTrajectory(icebergs[0], 7);
 
   const currentRisk = calculateRisk({
     seaIceConcentration: seaIceSummary.currentConcentration,
@@ -110,7 +112,7 @@ export default function DashboardPage() {
           icon={Map}
           className="lg:col-span-2"
         >
-          <AntarcticMap />
+          <AntarcticMap activeTrajectory={activeTrajectory} activeIcebergId={icebergs[0].id} />
         </SectionCard>
 
         {/* Right Side Panels */}

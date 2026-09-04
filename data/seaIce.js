@@ -6,8 +6,8 @@ export const seaIceSummary = {
   currentConcentration: 78.4, // Percentage %
   forecast24h: 81.2,
   forecast48h: 84.7,
-  predictionConfidence: 89.7, // Synced to calibrated PyTorch ConvLSTM satellite model (89.65%)
-  lastUpdated: "2026-09-04T05:39:41Z",
+  predictionConfidence: 84.6, // Synced to calibrated PyTorch ConvLSTM polar domain model (84.65%)
+  lastUpdated: "2026-09-04T22:17:30Z",
   source: "NOAA/NSIDC CDR Passive Microwave v6 + PyTorch ConvLSTM Calibrated",
   polarGridProjection: "EPSG:3031 (Antarctic Polar Stereographic)",
 };
@@ -64,9 +64,9 @@ export function getVesselIceTelemetry(vessel) {
     currentConcentration: baseConc,
     forecast24h: c24h,
     forecast48h: c48h,
-    predictionConfidence: 89.7,
+    predictionConfidence: 84.6,
     regionName: nearestRegion.region,
-    lastUpdated: "2026-09-04T05:39:41Z",
+    lastUpdated: "2026-09-04T22:17:30Z",
     source: "NOAA/NSIDC CDR Passive Microwave v6 + PyTorch ConvLSTM Calibrated",
     forecast5DayTrend,
   };

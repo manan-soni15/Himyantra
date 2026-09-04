@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Snowflake, Gauge, LineChart, Route, TableIcon, Compass, Navigation, Ship, ShieldCheck, AlertTriangle, Info, ChevronDown, MapPin } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import PageHeader from '@/components/PageHeader';
 import SectionCard from '@/components/SectionCard';
 import KpiCard from '@/components/KpiCard';
@@ -13,6 +14,15 @@ import { icebergs } from '@/data/icebergs';
 import { calculateRisk } from '@/lib/riskEngine';
 import { predictTrajectory } from '@/lib/trajectoryPrediction';
 import { useVessel } from '@/context/VesselContext';
+
+const AntarcticMap = dynamic(() => import('@/components/map/AntarcticMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-72 items-center justify-center rounded-md border border-polar-borderLight bg-polar-raised/40 md:min-h-[22rem]">
+      <p className="text-sm text-polar-light">Loading Antarctic EPSG:3031 Map & Trajectories...</p>
+    </div>
+  ),
+});
 
 // Ice Class Safe Sea-Ice Concentration Limits
 const ICE_CLASS_LIMITS = {
@@ -247,6 +257,15 @@ export default function IceIntelligencePage() {
           </div>
         </SectionCard>
       </section>
+
+      {/* Interactive Antarctic Map with Trajectory Polylines */}
+      <SectionCard
+        title={`Live Antarctic EPSG:3031 Map — Active Drift Trajectory Overlay: ${activeTrajectory?.icebergName || activeBerg.id}`}
+        icon={Navigation}
+        className="mt-6"
+      >
+        <AntarcticMap activeTrajectory={activeTrajectory} activeIcebergId={selectedIcebergId} />
+      </SectionCard>
 
       {/* Iceberg Intelligence & Interactive Trajectory Forecast */}
       <section className="mt-8">
