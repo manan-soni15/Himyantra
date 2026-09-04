@@ -3,7 +3,7 @@
 import ResearchStationsLayer from "./ResearchStationsLayer";
 import SeaIceLayer from "./SeaIceLayer";
 import SeaIceLegend from "./SeaIceLegend";
-
+import ProtectedAreasLayer from "./ProtectedAreasLayer";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -442,7 +442,8 @@ export default function AntarcticMap({
           ================================================= */}
 
           <SeaIceLayer />
-
+          
+          <ProtectedAreasLayer />
           {/* =================================================
               RESEARCH STATIONS LAYER
           ================================================= */}
