@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Snowflake, Gauge, LineChart, Route, TableIcon, Compass, Navigation, Ship, ShieldCheck, AlertTriangle, Info, ChevronDown, MapPin } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import PageHeader from '@/components/PageHeader';
