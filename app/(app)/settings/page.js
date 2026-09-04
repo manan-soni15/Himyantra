@@ -1,11 +1,21 @@
+'use client';
+
 import { Ship, Compass, Wifi, PlugZap } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import SectionCard from '@/components/SectionCard';
 import { TextField, SelectField } from '@/components/FormField';
 import Toggle from '@/components/Toggle';
 import Button from '@/components/Button';
+import { useVessel } from '@/context/VesselContext';
 
 export default function SettingsPage() {
+  const { activeVessel } = useVessel();
+
+  // Dynamic fuel burn rate estimation based on vessel class & displacement
+  const estFuelBurn = activeVessel.displacementTons 
+    ? `${(activeVessel.displacementTons * 0.0012).toFixed(1)} Tons/day`
+    : '14.2 Tons/day';
+
   return (
     <div className="max-w-3xl">
       <PageHeader title="Settings" description="Vessel profile, navigation preferences, and connectivity configuration." />
@@ -13,12 +23,12 @@ export default function SettingsPage() {
       <div className="flex flex-col gap-4">
         <SectionCard title="Vessel Profile" icon={Ship}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField id="vesselName" label="Vessel Name" defaultValue="Research Vessel A" />
-            <TextField id="vesselType" label="Vessel Type" placeholder="e.g. Icebreaker" />
-            <TextField id="iceClass" label="Ice Class" placeholder="e.g. PC3" />
-            <TextField id="cruisingSpeed" label="Cruising Speed" placeholder="e.g. 14 kn" />
-            <TextField id="fuelCapacity" label="Fuel Capacity" placeholder="e.g. 1,200 t" />
-            <TextField id="fuelConsumption" label="Fuel Consumption" placeholder="e.g. 18 t/day" />
+            <TextField key={`${activeVessel.id}-name`} id="vesselName" label="Vessel Name" defaultValue={activeVessel.name} />
+            <TextField key={`${activeVessel.id}-type`} id="vesselType" label="Vessel Type" defaultValue={activeVessel.type} />
+            <TextField key={`${activeVessel.id}-ice`} id="iceClass" label="IMO Ice Class" defaultValue={activeVessel.iceClass} />
+            <TextField key={`${activeVessel.id}-speed`} id="cruisingSpeed" label="Cruising Speed" defaultValue={`${activeVessel.maxSpeedKnots} kn`} />
+            <TextField key={`${activeVessel.id}-fuel`} id="fuelCapacity" label="Fuel Capacity" defaultValue={`${(activeVessel.fuelCapacityTons || 2400).toLocaleString()} Tons`} />
+            <TextField key={`${activeVessel.id}-burn`} id="fuelConsumption" label="Fuel Consumption Rate" defaultValue={estFuelBurn} />
           </div>
         </SectionCard>
 
