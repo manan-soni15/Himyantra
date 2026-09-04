@@ -2,7 +2,6 @@
 import SeaIceLayer from "./SeaIceLayer";
 import SeaIceLegend from "./SeaIceLegend";
 import { useEffect, useRef, useState } from "react";
-
 import {
   MapContainer,
   TileLayer,
@@ -11,18 +10,15 @@ import {
   Popup,
   Circle,
 } from "react-leaflet";
-
 import L from "leaflet";
-
 import "proj4leaflet";
-
 import { Maximize2, Minimize2 } from "lucide-react";
 import { icebergs } from "../../data/icebergs";
+import { useVessel } from "../../context/VesselContext";
 
 // Antarctic Polar Stereographic Projection
 const antarcticCRS = new L.Proj.CRS(
   "EPSG:3031",
-
   "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 " +
   "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   {
@@ -86,23 +82,9 @@ const antarcticLocations = [
   },
 ];
 
-// Research Vessel Data
-const vessel = {
-  name: "RV HIMYANTRA-01",
-
-  // Demo vessel position in Antarctic waters
-  position: [-68.5, 78.5],
-
-  heading: "South-East",
-  speed: "12.4 knots",
-
-  status: "Navigating",
-};
-
 // Custom Antarctic location marker
 const locationIcon = L.divIcon({
   className: "antarctic-location-marker",
-
   html: `
     <div style="
       width: 10px;
@@ -113,14 +95,13 @@ const locationIcon = L.divIcon({
       box-shadow: 0 0 10px rgba(103,232,249,0.8);
     "></div>
   `,
-
   iconSize: [10, 10],
   iconAnchor: [5, 5],
 });
+
 // Custom Research Vessel Marker
 const vesselIcon = L.divIcon({
   className: "vessel-marker",
-
   html: `
     <div style="
       position: relative;
@@ -130,7 +111,6 @@ const vesselIcon = L.divIcon({
       align-items: center;
       justify-content: center;
     ">
-
       <div style="
         position: absolute;
         width: 44px;
@@ -139,7 +119,6 @@ const vesselIcon = L.divIcon({
         border: 2px solid rgba(34,211,238,0.7);
         animation: pulse 2s infinite;
       "></div>
-
       <div style="
         position: relative;
         font-size: 24px;
@@ -147,10 +126,8 @@ const vesselIcon = L.divIcon({
       ">
         🚢
       </div>
-
     </div>
   `,
-
   iconSize: [44, 44],
   iconAnchor: [22, 22],
 });
@@ -177,8 +154,17 @@ const icebergIcon = L.divIcon({
 
 export default function AntarcticMap() {
   const mapRef = useRef(null);
-
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { activeVessel } = useVessel();
+
+  // Active vessel telemetry map object
+  const vessel = {
+    name: activeVessel.name,
+    position: activeVessel.currentPosition,
+    heading: "South-East",
+    speed: `${activeVessel.maxSpeedKnots} knots`,
+    status: activeVessel.status || "Navigating",
+  };
 
   // Resize Leaflet map when fullscreen mode changes
   useEffect(() => {
@@ -227,7 +213,6 @@ export default function AntarcticMap() {
           zoomControl={true}
           ref={mapRef}
         >
-
           {/* NASA Antarctic Basemap */}
           <TileLayer
             url="https://gibs.earthdata.nasa.gov/wmts/epsg3031/best/BlueMarble_ShadedRelief_Bathymetry/default/500m/{z}/{y}/{x}.jpeg"
@@ -264,21 +249,16 @@ export default function AntarcticMap() {
             <Popup>
               <div style={{ minWidth: "180px" }}>
                 <strong>{vessel.name}</strong>
-
                 <hr />
-
                 <p>
                   <b>Status:</b> {vessel.status}
                 </p>
-
                 <p>
                   <b>Speed:</b> {vessel.speed}
                 </p>
-
                 <p>
                   <b>Heading:</b> {vessel.heading}
                 </p>
-
                 <p>
                   <b>Position:</b>
                   <br />
@@ -335,7 +315,6 @@ export default function AntarcticMap() {
         <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] rounded-md border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs text-slate-400 backdrop-blur">
           EPSG:3031 • Antarctic Polar Projection
         </div>
-
       </div>
     </div>
   );
