@@ -224,12 +224,14 @@ export default function AntarcticMap({
 
   // Compute map center target: active iceberg position if available, or vessel position
   const activeCenter =
-  showTrajectory && activeTrajectory?.predictedPath?.length
-    ? [
-        activeTrajectory.predictedPath[0].lat,
-        activeTrajectory.predictedPath[0].lon,
-      ]
-    : activeVessel?.currentPosition || [-64, -55];
+    showTrajectory &&
+    Array.isArray(activeTrajectory?.predictedPath) &&
+    activeTrajectory.predictedPath.length > 0
+      ? [
+          Number(activeTrajectory.predictedPath[0].lat),
+          Number(activeTrajectory.predictedPath[0].lon),
+        ]
+      : activeVessel?.currentPosition || [-64, -55];
 
   /* =======================================================
      Active Vessel Telemetry
@@ -597,75 +599,134 @@ export default function AntarcticMap({
 
           {/* =================================================
               ACTIVE ICEBERG TRAJECTORY POLYLINES & DRIFT FORECAST
+
+              IMPORTANT:
+              - showTrajectory defaults to false, so Mission Control
+                does NOT display iceberg trajectories.
+              - Ice Intelligence passes showTrajectory={true}, so the
+                selected iceberg trajectory is displayed there.
           ================================================= */}
           {showTrajectory && activeTrajectory && (
             <>
-              {/* Historical Path (Dashed gray/slate line) */}
-              {activeTrajectory.historicalPath && activeTrajectory.historicalPath.length > 0 && (
-                <Polyline
-                  positions={activeTrajectory.historicalPath.map((p) => [p.lat, p.lon])}
-                  pathOptions={{
-                    color: "#64748b",
-                    weight: 2.5,
-                    dashArray: "3, 6",
-                    opacity: 0.85,
-                  }}
-                />
-              )}
-
-              {/* 7-Day Predicted Trajectory Line (Glowing dashed Cyan) */}
-              {activeTrajectory.predictedPath && activeTrajectory.predictedPath.length > 0 && (
-                <>
+              {/* Historical observed iceberg path */}
+              {Array.isArray(activeTrajectory.historicalPath) &&
+                activeTrajectory.historicalPath.length >= 2 && (
                   <Polyline
-                    positions={[
-                      activeTrajectory.currentPosition || [activeTrajectory.predictedPath[0].lat, activeTrajectory.predictedPath[0].lon],
-                      ...activeTrajectory.predictedPath.map((p) => [p.lat, p.lon]),
-                    ]}
+                    positions={activeTrajectory.historicalPath
+                      .map((point) => [
+                        Number(point.lat),
+                        Number(point.lon),
+                      ])
+                      .filter(
+                        (point) =>
+                          Number.isFinite(point[0]) &&
+                          Number.isFinite(point[1])
+                      )}
                     pathOptions={{
-                      color: "#06b6d4",
-                      weight: 3.5,
-                      dashArray: "6, 8",
+                      color: "#94a3b8",
+                      weight: 3,
+                      dashArray: "6 8",
                       opacity: 0.95,
                     }}
                   />
+                )}
 
-                  {/* Daily Forecast Milestone Markers */}
-                  {activeTrajectory.predictedPath.map((pt, idx) => (
-                    <Marker
-                      key={`traj-pt-${idx}`}
-                      position={[pt.lat, pt.lon]}
-                      icon={L.divIcon({
-                        className: "trajectory-milestone-marker",
-                        html: `
-                          <div style="
-                            background: #0284c7;
-                            color: #ffffff;
-                            font-size: 10px;
-                            font-weight: 700;
-                            padding: 2px 5px;
-                            border-radius: 4px;
-                            border: 1px solid #38bdf8;
-                            box-shadow: 0 0 8px rgba(6,182,212,0.8);
-                            white-space: nowrap;
-                          ">${pt.day || `+${idx + 1}d`}</div>
-                        `,
-                        iconSize: [32, 18],
-                        iconAnchor: [16, 9],
-                      })}
-                    >
-                      <Tooltip direction="top" offset={[0, -10]} className="antarctic-tooltip">
-                        <div className="text-xs">
-                          <strong>{activeTrajectory.icebergName || "Active Iceberg"} ({pt.day || `+${idx + 1}d`})</strong>
-                          <br />
-                          Forecast Date: {pt.date}
-                          <br />
-                          Position: {pt.lat.toFixed(2)}°, {pt.lon.toFixed(2)}°
-                        </div>
-                      </Tooltip>
-                    </Marker>
-                  ))}
-                </>
-              )}
+              {/* Current iceberg position → 7-day predicted trajectory */}
+              {Array.isArray(activeTrajectory.predictedPath) &&
+                activeTrajectory.predictedPath.length > 0 && (
+                  <>
+                    <Polyline
+                      positions={[
+                        ...(Array.isArray(activeTrajectory.currentPosition)
+                          ? [
+                              [
+                                Number(activeTrajectory.currentPosition[0]),
+                                Number(activeTrajectory.currentPosition[1]),
+                              ],
+                            ]
+                          : [
+                              [
+                                Number(activeTrajectory.predictedPath[0].lat),
+                                Number(activeTrajectory.predictedPath[0].lon),
+                              ],
+                            ]),
+                        ...activeTrajectory.predictedPath
+                          .map((point) => [
+                            Number(point.lat),
+                            Number(point.lon),
+                          ])
+                          .filter(
+                            (point) =>
+                              Number.isFinite(point[0]) &&
+                              Number.isFinite(point[1])
+                          ),
+                      ]}
+                      pathOptions={{
+                        color: "#22d3ee",
+                        weight: 4,
+                        dashArray: "8 8",
+                        opacity: 1,
+                        lineCap: "round",
+                        lineJoin: "round",
+                      }}
+                    />
+
+                    {/* Daily forecast waypoint markers */}
+                    {activeTrajectory.predictedPath.map((point, index) => {
+                      const lat = Number(point.lat);
+                      const lon = Number(point.lon);
+
+                      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                        return null;
+                      }
+
+                      return (
+                        <Marker
+                          key={`trajectory-point-${activeTrajectory.icebergName || "iceberg"}-${index}`}
+                          position={[lat, lon]}
+                          icon={L.divIcon({
+                            className: "trajectory-milestone-marker",
+                            html: `
+                              <div style="
+                                background: #0284c7;
+                                color: #ffffff;
+                                font-size: 10px;
+                                font-weight: 700;
+                                padding: 3px 6px;
+                                border-radius: 4px;
+                                border: 1px solid #38bdf8;
+                                box-shadow: 0 0 10px rgba(6,182,212,0.9);
+                                white-space: nowrap;
+                              ">
+                                ${point.day ? `+${point.day}d` : `+${index + 1}d`}
+                              </div>
+                            `,
+                            iconSize: [36, 20],
+                            iconAnchor: [18, 10],
+                          })}
+                        >
+                          <Tooltip
+                            direction="top"
+                            offset={[0, -10]}
+                            className="antarctic-tooltip"
+                          >
+                            <div className="text-xs">
+                              <strong>
+                                {activeTrajectory.icebergName || "Active Iceberg"}
+                              </strong>
+                              <br />
+                              Forecast: +{point.day || index + 1} day
+                              <br />
+                              Date: {point.date}
+                              <br />
+                              Position: {lat.toFixed(2)}°, {lon.toFixed(2)}°
+                            </div>
+                          </Tooltip>
+                        </Marker>
+                      );
+                    })}
+                  </>
+                )}
             </>
           )}
 
