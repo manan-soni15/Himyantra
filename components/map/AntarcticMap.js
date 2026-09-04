@@ -14,6 +14,7 @@ import {
   Popup,
   Circle,
   Polyline,
+  useMap,
 } from "react-leaflet";
 
 import L from "leaflet";
@@ -190,15 +191,37 @@ const icebergIcon = L.divIcon({
 });
 
 /* =========================================================
+   Map View Controller for Dynamic Iceberg Auto-Centering
+========================================================= */
+
+function MapViewController({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center && Array.isArray(center) && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+      map.flyTo(center, Math.max(3, map.getZoom()), {
+        animate: true,
+        duration: 1.2,
+      });
+    }
+  }, [center, map]);
+  return null;
+}
+
+/* =========================================================
    Component
 ========================================================= */
 
-export default function AntarcticMap() {
+export default function AntarcticMap({ activeTrajectory, activeIcebergId, showTrajectory = true }) {
   const mapRef = useRef(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { activeVessel } = useVessel();
+
+  // Compute map center target: active iceberg position if available, or vessel position
+  const activeCenter = activeTrajectory?.currentPosition || activeTrajectory?.predictedPath?.[0] 
+    ? [activeTrajectory.predictedPath[0].lat, activeTrajectory.predictedPath[0].lon]
+    : activeVessel?.currentPosition || [-64, -55];
 
   /* =======================================================
      Active Vessel Telemetry
@@ -277,18 +300,19 @@ export default function AntarcticMap() {
         ================================================= */}
 
         <MapContainer
-          center={[-82, 0]}
-          zoom={2}
+          center={activeCenter}
+          zoom={3}
           minZoom={1}
           maxZoom={8}
           crs={antarcticCRS}
-          className="h-full w-full"
+          className="h-full w-full bg-[#0b131e]"
           zoomControl={true}
           ref={mapRef}
           style={{
-            background: "#dbeafe",
+            background: "#0b131e",
           }}
         >
+          <MapViewController center={activeCenter} />
 
           {/* =================================================
               NASA ANTARCTIC BASEMAP
@@ -561,6 +585,80 @@ export default function AntarcticMap() {
               </Tooltip>
             </Marker>
           ))}
+
+          {/* =================================================
+              ACTIVE ICEBERG TRAJECTORY POLYLINES & DRIFT FORECAST
+          ================================================= */}
+          {showTrajectory && activeTrajectory && (
+            <>
+              {/* Historical Path (Dashed gray/slate line) */}
+              {activeTrajectory.historicalPath && activeTrajectory.historicalPath.length > 0 && (
+                <Polyline
+                  positions={activeTrajectory.historicalPath.map((p) => [p.lat, p.lon])}
+                  pathOptions={{
+                    color: "#64748b",
+                    weight: 2.5,
+                    dashArray: "3, 6",
+                    opacity: 0.85,
+                  }}
+                />
+              )}
+
+              {/* 7-Day Predicted Trajectory Line (Glowing dashed Cyan) */}
+              {activeTrajectory.predictedPath && activeTrajectory.predictedPath.length > 0 && (
+                <>
+                  <Polyline
+                    positions={[
+                      activeTrajectory.currentPosition || [activeTrajectory.predictedPath[0].lat, activeTrajectory.predictedPath[0].lon],
+                      ...activeTrajectory.predictedPath.map((p) => [p.lat, p.lon]),
+                    ]}
+                    pathOptions={{
+                      color: "#06b6d4",
+                      weight: 3.5,
+                      dashArray: "6, 8",
+                      opacity: 0.95,
+                    }}
+                  />
+
+                  {/* Daily Forecast Milestone Markers */}
+                  {activeTrajectory.predictedPath.map((pt, idx) => (
+                    <Marker
+                      key={`traj-pt-${idx}`}
+                      position={[pt.lat, pt.lon]}
+                      icon={L.divIcon({
+                        className: "trajectory-milestone-marker",
+                        html: `
+                          <div style="
+                            background: #0284c7;
+                            color: #ffffff;
+                            font-size: 10px;
+                            font-weight: 700;
+                            padding: 2px 5px;
+                            border-radius: 4px;
+                            border: 1px solid #38bdf8;
+                            box-shadow: 0 0 8px rgba(6,182,212,0.8);
+                            white-space: nowrap;
+                          ">${pt.day || `+${idx + 1}d`}</div>
+                        `,
+                        iconSize: [32, 18],
+                        iconAnchor: [16, 9],
+                      })}
+                    >
+                      <Tooltip direction="top" offset={[0, -10]} className="antarctic-tooltip">
+                        <div className="text-xs">
+                          <strong>{activeTrajectory.icebergName || "Active Iceberg"} ({pt.day || `+${idx + 1}d`})</strong>
+                          <br />
+                          Forecast Date: {pt.date}
+                          <br />
+                          Position: {pt.lat.toFixed(2)}°, {pt.lon.toFixed(2)}°
+                        </div>
+                      </Tooltip>
+                    </Marker>
+                  ))}
+                </>
+              )}
+            </>
+          )}
 
           {/* =================================================
               SEA-ICE LEGEND
