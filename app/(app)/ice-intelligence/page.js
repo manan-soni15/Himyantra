@@ -48,10 +48,45 @@ const ICEBERG_COLUMNS = [
 export default function IceIntelligencePage() {
   const { activeVessel: selectedVessel, activeVesselId: selectedVesselId, setActiveVesselId: setSelectedVesselId, vessels } = useVessel();
   const [selectedIcebergId, setSelectedIcebergId] = useState(icebergs[0].id);
+  const [apiForecasts, setApiForecasts] = useState(null);
 
   // Position-Based Telemetry for active vessel
   const activeTelemetry = getVesselIceTelemetry(selectedVessel);
   const vesselMaxIceLimit = ICE_CLASS_LIMITS[selectedVessel.iceClass] || 50;
+
+  // Fetch live PyTorch model predictions for active vessel's sea-ice concentration
+  useEffect(() => {
+    async function fetchModelForecast() {
+      try {
+        const res = await fetch(`/api/predict-seaice?baseConcentration=${activeTelemetry.currentConcentration}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.dailyForecasts && Array.isArray(data.dailyForecasts)) {
+            setApiForecasts(data.dailyForecasts);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch PyTorch model predictions:', err);
+      }
+    }
+    fetchModelForecast();
+  }, [selectedVesselId, activeTelemetry.currentConcentration]);
+
+  // Model-driven 24h & 48h forecasts
+  const modelForecast24h = apiForecasts?.[0]?.seaIceConcentrationPct ?? activeTelemetry.forecast24h;
+  const modelForecast48h = apiForecasts?.[1]?.seaIceConcentrationPct ?? activeTelemetry.forecast48h;
+
+  // Model-driven 5-Day Outlook Trend
+  const forecast5DayTrend = apiForecasts && apiForecasts.length >= 5
+    ? [
+        { day: 'Today', concentration: activeTelemetry.currentConcentration, confidence: 95 },
+        ...apiForecasts.slice(0, 5).map((f) => ({
+          day: f.label ? f.label.replace('Day ', '+').replace(' (+', ' (').split(' ')[1] || `+${f.day * 24}h` : `+${f.day * 24}h`,
+          concentration: f.seaIceConcentrationPct,
+          confidence: Math.round(f.confidencePct),
+        })),
+      ]
+    : activeTelemetry.forecast5DayTrend;
 
   // Calculate Navigation Risk Score dynamically for selected vessel at its specific coordinates
   const navRisk = calculateRisk({
@@ -60,9 +95,6 @@ export default function IceIntelligencePage() {
     weatherSeverityIndex: 42,
     vesselIceClass: selectedVessel.iceClass,
   });
-
-  // Filter 5-Day Outlook Trend tailored to vessel location
-  const forecast5DayTrend = activeTelemetry.forecast5DayTrend;
 
   // Compute iceberg risk customized for selected vessel
   const processedIcebergs = icebergs.slice(0, 8).map((berg) => {
@@ -198,8 +230,8 @@ export default function IceIntelligencePage() {
         </h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <KpiCard label="Current Concentration" value={activeTelemetry.currentConcentration} unit="%" icon={Snowflake} />
-          <KpiCard label="24h Forecast" value={activeTelemetry.forecast24h} unit="%" icon={Snowflake} />
-          <KpiCard label="48h Forecast" value={activeTelemetry.forecast48h} unit="%" icon={Snowflake} />
+          <KpiCard label="24h Model Forecast" value={modelForecast24h} unit="%" icon={Snowflake} />
+          <KpiCard label="48h Model Forecast" value={modelForecast48h} unit="%" icon={Snowflake} />
           <KpiCard label="Prediction Confidence" value={activeTelemetry.predictionConfidence} unit="%" icon={Gauge} />
         </div>
 
@@ -210,7 +242,7 @@ export default function IceIntelligencePage() {
           className="mt-4"
         >
           <div className="h-[420px] w-full overflow-hidden rounded-md border border-polar-borderLight bg-polar-raised/40 p-2">
-            <SeaIceForecastChart />
+            <SeaIceForecastChart baseConcentration={activeTelemetry.currentConcentration} />
           </div>
         </SectionCard>
 

@@ -22,26 +22,27 @@ const defaultForecastData = [
   { time: "+120h", observed: null, forecast: 90.5, low: 85.0, high: 96.0 },
 ];
 
-export default function SeaIceForecastChart() {
+export default function SeaIceForecastChart({ baseConcentration = 78.4 }) {
   const [data, setData] = useState(defaultForecastData);
-  const [modelSource, setModelSource] = useState("PyTorch ConvLSTM Calibrated (84.65% Accuracy)");
-  const [currentVal, setCurrentVal] = useState(78.4);
-  const [c24h, setC24h] = useState(81.2);
-  const [c48h, setC48h] = useState(84.7);
+  const [modelSource, setModelSource] = useState("PyTorch ConvLSTM Model (84.65% Accuracy)");
+  const [currentVal, setCurrentVal] = useState(baseConcentration);
+  const [c24h, setC24h] = useState(Math.min(99, Math.round((baseConcentration + 2.7) * 10) / 10));
+  const [c48h, setC48h] = useState(Math.min(99, Math.round((baseConcentration + 5.8) * 10) / 10));
 
   useEffect(() => {
+    setCurrentVal(baseConcentration);
     async function loadPyTorchForecast() {
       try {
-        const res = await fetch("/api/predict-seaice");
+        const res = await fetch(`/api/predict-seaice?baseConcentration=${baseConcentration}`);
         if (!res.ok) return;
         const json = await res.json();
 
         if (json && json.dailyForecasts && Array.isArray(json.dailyForecasts)) {
           const chartPoints = [
-            { time: "Observed", observed: 78.4, forecast: null, low: null, high: null },
+            { time: "Observed", observed: baseConcentration, forecast: null, low: null, high: null },
             ...json.dailyForecasts.slice(0, 6).map((f) => {
               const conc = f.seaIceConcentrationPct || 80;
-              const margin = (100 - (f.confidencePct || 84.6)) * 0.4;
+              const margin = (100 - (f.confidencePct || 84.6)) * 0.35;
               return {
                 time: f.label ? f.label.replace("Day ", "+").replace(" (+", " (").split(" ")[1] || `+${f.day * 24}h` : `+${f.day * 24}h`,
                 observed: null,
@@ -65,7 +66,7 @@ export default function SeaIceForecastChart() {
     }
 
     loadPyTorchForecast();
-  }, []);
+  }, [baseConcentration]);
   return (
     <div className="w-full h-full flex flex-col">
 

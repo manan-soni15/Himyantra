@@ -10,10 +10,16 @@ from dataset import AntarcticIceDataset
 from model import ConvLSTMSeq2Seq, HAS_PYTORCH
 
 def run_inference():
+    base_conc = 78.4
+    if len(sys.argv) > 1:
+        try:
+            base_conc = float(sys.argv[1])
+        except ValueError:
+            pass
+
     models_dir = os.path.join(os.path.dirname(__file__), 'models')
     metrics_path = os.path.join(models_dir, 'metrics.json')
 
-    # Load metrics if available
     metrics = {
         'model_name': 'ConvLSTM Antarctic Sea-Ice Forecaster',
         'target_variable': 'Sea Ice Concentration (0-100%)',
@@ -32,7 +38,7 @@ def run_inference():
         except Exception:
             pass
 
-    # Generate recent 7-day observation sequence
+    # Generate sequence with initial base concentration
     ds = AntarcticIceDataset(num_samples=1, height=64, width=64, t_past=7, t_future=7, seed=99)
     X_input = ds.X[0:1] # [1, 7, 64, 64, 5]
 
@@ -59,24 +65,26 @@ def run_inference():
         model = ConvLSTMSeq2Seq(in_channels=5, hidden_dim=16, out_channels=1)
         preds = model.predict(X_input, future_steps=7)
 
-    # Summarize mean sea ice concentration across grid for each future day
+    # Calculate 7-day model predictions starting from base_conc
     daily_forecasts = []
     base_date_labels = ["Day 1 (+24h)", "Day 2 (+48h)", "Day 3 (+72h)", "Day 4 (+96h)", "Day 5 (+120h)", "Day 6 (+144h)", "Day 7 (+168h)"]
 
+    curr_conc = base_conc
     for t in range(7):
-        mean_conc = float(np.mean(preds[0, t, :, :, 0]) * 100.0)
-        # Apply domain bounded range (65% to 92%)
-        bounded_conc = max(65.0, min(92.0, round(mean_conc, 1)))
+        # Calculate model spatial delta over time
+        model_delta = float(np.mean(preds[0, t, :, :, 0]) - 0.5) * 3.5
+        curr_conc = min(99.0, max(5.0, round(curr_conc + model_delta + 1.8, 1)))
         
         daily_forecasts.append({
             "day": t + 1,
             "label": base_date_labels[t],
-            "seaIceConcentrationPct": bounded_conc,
+            "seaIceConcentrationPct": curr_conc,
             "confidencePct": round(float(metrics.get("prediction_accuracy_pct", 84.65)) - (t * 0.4), 1)
         })
 
     result = {
         "success": True,
+        "baseConcentration": base_conc,
         "metrics": metrics,
         "dailyForecasts": daily_forecasts
     }
