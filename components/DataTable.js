@@ -1,6 +1,6 @@
 import EmptyState from './EmptyState';
 
-export default function DataTable({ columns = [], rows = [], emptyTitle = 'No data yet', emptyDescription }) {
+export default function DataTable({ columns = [], rows = [], emptyTitle = 'No data yet', emptyDescription, onRowClick, selectedRowId }) {
   if (!rows.length) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
@@ -18,15 +18,22 @@ export default function DataTable({ columns = [], rows = [], emptyTitle = 'No da
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={row.id ?? i} className="border-b border-polar-border/60 last:border-0">
-              {columns.map((col) => (
-                <td key={col.key} className="py-3 pr-4 text-[#c3d3dd] font-mono text-[13px] whitespace-nowrap">
-                  {col.render ? col.render(row) : row[col.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row, i) => {
+            const isSelected = selectedRowId && (row.rawId === selectedRowId || row.id === selectedRowId || row.rawId === String(selectedRowId));
+            return (
+              <tr
+                key={row.id ?? i}
+                onClick={() => onRowClick && onRowClick(row)}
+                className={`border-b border-polar-border/60 last:border-0 transition-colors ${onRowClick ? 'cursor-pointer hover:bg-polar-raised/80' : ''} ${isSelected ? 'bg-polar-accent/15 border-l-2 border-l-polar-accent' : ''}`}
+              >
+                {columns.map((col) => (
+                  <td key={col.key} className="py-3 pr-4 text-[#c3d3dd] font-mono text-[13px] whitespace-nowrap">
+                    {col.render ? col.render(row) : row[col.key]}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

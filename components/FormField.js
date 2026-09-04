@@ -24,7 +24,7 @@ export function SelectField({ id, label, options = [], ...props }) {
       {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <select id={id} className={`${fieldClasses} appearance-none`} {...props}>
         {options.map((opt) => (
-          <option key={opt.value ?? opt} value={opt.value ?? opt}>
+          <option key={opt.value ?? opt} value={opt.value ?? opt} className="bg-[#0b131e] text-[#dbe7ee] py-2">
             {opt.label ?? opt}
           </option>
         ))}

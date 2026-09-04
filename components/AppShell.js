@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import TopHeader from './TopHeader';
 import MobileNav from './MobileNav';
+import { VesselProvider } from '@/context/VesselContext';
 
 const TITLES = {
   '/dashboard': 'Mission Control',
@@ -23,13 +24,15 @@ export default function AppShell({ children }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen bg-polar-bg">
-      <Sidebar />
-      <div className="flex flex-1 flex-col min-w-0">
-        <TopHeader title={titleFor(pathname)} />
-        <main className="flex-1 px-4 py-5 md:px-6 md:py-6 pb-20 md:pb-6">{children}</main>
+    <VesselProvider>
+      <div className="flex min-h-screen bg-polar-bg">
+        <Sidebar />
+        <div className="flex flex-1 flex-col min-w-0">
+          <TopHeader title={titleFor(pathname)} />
+          <main className="flex-1 px-4 py-5 md:px-6 md:py-6 pb-20 md:pb-6">{children}</main>
+        </div>
+        <MobileNav />
       </div>
-      <MobileNav />
-    </div>
+    </VesselProvider>
   );
 }

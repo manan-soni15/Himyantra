@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { User } from 'lucide-react';
+import { User, Ship } from 'lucide-react';
 import ConnectivityIndicator from './ConnectivityIndicator';
+import { useVessel } from '@/context/VesselContext';
 
 function formatUtc(date) {
   return date.toISOString().slice(11, 19) + ' UTC';
@@ -10,6 +11,7 @@ function formatUtc(date) {
 
 export default function TopHeader({ title }) {
   const [time, setTime] = useState(null);
+  const { activeVessel } = useVessel();
 
   useEffect(() => {
     setTime(formatUtc(new Date()));
@@ -25,8 +27,10 @@ export default function TopHeader({ title }) {
 
       <div className="flex items-center gap-3 md:gap-5">
         <div className="hidden sm:flex flex-col items-end leading-tight">
-          <span className="text-[11px] text-[#6b7f8f]">Vessel</span>
-          <span className="text-sm text-[#dbe7ee]">Research Vessel A</span>
+          <span className="text-[11px] text-[#6b7f8f] flex items-center gap-1">
+            <Ship className="h-3 w-3 text-polar-accent" /> Active Vessel
+          </span>
+          <span className="text-sm text-polar-accent font-semibold">{activeVessel.name}</span>
         </div>
 
         <div className="hidden md:block h-8 w-px bg-polar-border" />
