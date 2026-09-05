@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Voyage Analytics"
-        description={`Live voyage metrics, fuel burn profiles, and risk telemetry dynamically synchronized for ${activeVessel.name}.`}
+        description={`Simulated voyage metrics, fuel burn profiles, and risk telemetry dynamically synchronized for ${activeVessel.name}.`}
       />
 
       {/* Active Vessel Telemetry Banner */}
@@ -249,7 +249,7 @@ export default function AnalyticsPage() {
                 <span className="font-mono text-white font-bold">{telemetry.localIceConcentration}%</span>
               </div>
               <div className="bg-polar-raised/60 p-2.5 rounded border border-polar-border">
-                <span className="text-gray-400 block">PyTorch ConvLSTM Model</span>
+                <span className="text-gray-400 block">Prototype / Simulated Forecast — ConvLSTM Integration Pending</span>
                 <span className="font-mono text-green-400 font-bold">89.7% Conf</span>
               </div>
               <div className="bg-polar-raised/60 p-2.5 rounded border border-polar-border">

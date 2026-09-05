@@ -1,7 +1,9 @@
 // data/weather.js
-// Polar Atmospheric Forcing Data matching Copernicus ERA5 & NOAA GFS 0.25-degree parameters
+// Prototype Weather Data — ERA5/GFS-inspired values (static mock dataset)
 
-export const currentWeather = {
+import { normalizeWeather } from "../lib/dataNormalizer.js";
+
+const rawCurrentWeather = {
   region: "Weddell Sea / Antarctic Sector",
   timestamp: "2026-08-27T00:00:00Z",
   windSpeedKnots: 28.5,
@@ -15,8 +17,10 @@ export const currentWeather = {
   waveHeightMeters: 3.2,
   weatherCondition: "Blowing Snow / High Winds",
   severityIndex: 68, // 0-100
-  source: "Copernicus ERA5 & NOAA GFS 0.25°",
+  source: "Prototype Weather Data — ERA5/GFS-inspired values",
 };
+
+export const currentWeather = normalizeWeather(rawCurrentWeather);
 
 export const regionalWeatherGrid = [
   { region: "Drake Passage", windKts: 38, airTempC: -2.1, pressure: 990, waveMeters: 5.8, risk: "High" },

@@ -9,11 +9,11 @@ export function FieldLabel({ children, htmlFor }) {
 const fieldClasses =
   'w-full rounded-md border border-polar-border bg-polar-raised px-3 py-2.5 text-sm text-[#dbe7ee] placeholder:text-[#4d5f6d] focus:border-ice/50 outline-none transition-colors';
 
-export function TextField({ id, label, placeholder, ...props }) {
+export function TextField({ id, label, placeholder, type = "text", ...props }) {
   return (
     <div>
       {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
-      <input id={id} type="text" placeholder={placeholder} className={fieldClasses} {...props} />
+      <input id={id} type={type} placeholder={placeholder} className={fieldClasses} {...props} />
     </div>
   );
 }

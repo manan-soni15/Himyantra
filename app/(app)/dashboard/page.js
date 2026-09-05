@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useState, useEffect } from "react";
 import {
   Percent,
   Radar,
@@ -22,9 +23,9 @@ import StatusBadge from "@/components/StatusBadge";
 import { seaIceSummary, seaIceForecastTimeseries } from "@/data/seaIce";
 import { icebergs } from "@/data/icebergs";
 import { currentWeather } from "@/data/weather";
-import { candidateRoutes } from "@/data/routes";
+import { generateRoutes } from "@/lib/routeOptimizer";
 import { alerts } from "@/data/alerts";
-import { calculateRisk } from "@/lib/riskEngine";
+import { calculateSpatialRiskAtLatLon, getRiskLevel } from "@/lib/spatialRiskGrid";
 import { useVessel } from "@/context/VesselContext";
 
 // Dynamically import Leaflet map because Leaflet only works in the browser
@@ -44,23 +45,34 @@ const AntarcticMap = dynamic(
 
 export default function DashboardPage() {
   const { activeVessel } = useVessel();
+  
+  const [evaluatedRoutes, setEvaluatedRoutes] = useState([]);
 
-  const currentRisk = calculateRisk({
-    seaIceConcentration: seaIceSummary.currentConcentration,
-    icebergProximityKm: 18,
-    weatherSeverityIndex: currentWeather.severityIndex,
-    vesselIceClass: activeVessel.iceClass,
-  });
+  useEffect(() => {
+    let isSubscribed = true;
+    generateRoutes({ vessel: activeVessel, objective: 'Safest' })
+      .then(routes => {
+        if (isSubscribed) setEvaluatedRoutes(routes);
+      })
+      .catch(err => console.error(err));
+    return () => { isSubscribed = false; };
+  }, [activeVessel]);
 
-  const topRecommendedRoute = candidateRoutes.find((r) => r.objective === 'Balanced') || candidateRoutes[0];
+  const spatialRiskData = calculateSpatialRiskAtLatLon(activeVessel.currentPosition[0], activeVessel.currentPosition[1]);
+  const currentRisk = {
+    score: spatialRiskData ? spatialRiskData.environmentalRisk : 0,
+    level: spatialRiskData ? getRiskLevel(spatialRiskData.environmentalRisk).toLowerCase() : 'low'
+  };
+
+  const topRecommendedRoute = evaluatedRoutes.find((r) => r.isRecommended) || evaluatedRoutes[0];
 
   return (
     <div>
       {/* Page Header */}
       <PageHeader
-        eyebrow="Live operational telemetry"
+        eyebrow="Simulated Vessel Telemetry"
         title="Mission Control"
-        description="Consolidated view of NSIDC ice concentration, iceberg threats, ERA5 weather, and active route optimization."
+        description="Consolidated view of NSIDC ice concentration, iceberg threats, prototype weather, and active route optimization."
         action={<StatusBadge status={currentRisk.level === 'safe' ? 'Safe' : currentRisk.level === 'moderate' ? 'Moderate' : 'High'} label={`Risk: ${currentRisk.level.toUpperCase()}`} />}
       />
 
@@ -80,11 +92,11 @@ export default function DashboardPage() {
           value={icebergs.length}
           icon={Radar}
           status="info"
-          hint="USNIC Antarctic Report"
+          hint="Mock Dataset based on USNIC structure"
         />
 
         <KpiCard
-          label="Navigation Risk Score"
+          label="Current Position Risk"
           value={currentRisk.score}
           unit="/100"
           icon={ShieldAlert}
@@ -120,28 +132,33 @@ export default function DashboardPage() {
             title="AI Route Recommendation"
             icon={RouteIcon}
           >
-            <div className="p-3 bg-polar-base rounded border border-polar-border space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-green-400" />
-                  {topRecommendedRoute.name}
-                </span>
-                <span className="font-mono text-polar-accent font-bold">{topRecommendedRoute.aiScore}% Fit</span>
+            {topRecommendedRoute ? (
+              <div className="p-3 bg-polar-base rounded border border-polar-border space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-green-400" />
+                    {topRecommendedRoute.name}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  {topRecommendedRoute.recommendationExplanation}
+                </p>
+                <div className="flex justify-between text-gray-400 pt-1 font-mono text-[10px]">
+                  <span>Dist: {topRecommendedRoute.distanceNauticalMiles || '--'} NM</span>
+                  <span>Fuel: {topRecommendedRoute.estimatedFuelTons || '--'} T</span>
+                  <span>ETA: {topRecommendedRoute.estimatedDays || '--'} Days</span>
+                </div>
               </div>
-              <p className="text-[11px] text-gray-300">
-                {topRecommendedRoute.description}
-              </p>
-              <div className="flex justify-between text-gray-400 pt-1 font-mono text-[10px]">
-                <span>Dist: {topRecommendedRoute.distanceNauticalMiles} NM</span>
-                <span>Fuel: {topRecommendedRoute.estimatedFuelTons} T</span>
-                <span>ETA: {topRecommendedRoute.estimatedDays} Days</span>
+            ) : (
+              <div className="p-3 bg-polar-base rounded border border-polar-border text-xs text-gray-400">
+                Calculating active route...
               </div>
-            </div>
+            )}
           </SectionCard>
 
           {/* Weather */}
           <SectionCard
-            title="Polar Weather Telemetry"
+            title="Prototype Weather Data"
             icon={CloudSun}
             className="flex-1"
           >

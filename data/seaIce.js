@@ -2,17 +2,19 @@
 // Antarctic Sea-Ice Concentration Data based on NSIDC Passive Microwave Climate Data Record (CDR)
 // Spatial resolution: 25 km x 25 km grid over Southern Ocean / Antarctic region
 
+import { normalizeSeaIce } from "../lib/dataNormalizer.js";
+
 export const seaIceSummary = {
   currentConcentration: 78.4, // Percentage %
   forecast24h: 81.2,
   forecast48h: 84.7,
-  predictionConfidence: 89.7, // Synced to calibrated PyTorch ConvLSTM satellite model (89.65%)
+  predictionConfidence: 89.7, // Synced to Prototype / Simulated Forecast — ConvLSTM Integration Pending
   lastUpdated: "2026-09-04T05:39:41Z",
-  source: "NOAA/NSIDC CDR Passive Microwave v6 + PyTorch ConvLSTM Calibrated",
+  source: "NOAA/NSIDC CDR Passive Microwave v6 + Prototype / Simulated Forecast — ConvLSTM Integration Pending",
   polarGridProjection: "EPSG:3031 (Antarctic Polar Stereographic)",
 };
 
-export const seaIceGrid = [
+const rawSeaIceGrid = [
   { lat: -62.5, lon: -58.5, concentration: 42, region: "Antarctic Peninsula" },
   { lat: -65.0, lon: -64.0, concentration: 76, region: "Bellingshausen Sea" },
   { lat: -68.0, lon: -70.0, concentration: 89, region: "Marguerite Bay" },
@@ -26,6 +28,8 @@ export const seaIceGrid = [
   { lat: -64.0, lon: -50.0, concentration: 85, region: "Weddell Sea North" },
   { lat: -58.5, lon: -37.0, concentration: 28, region: "South Georgia Passage" },
 ];
+
+export const seaIceGrid = rawSeaIceGrid.map(normalizeSeaIce);
 
 // Map vessel position coordinates to localized sea-ice telemetry & 5-day forecast
 export function getVesselIceTelemetry(vessel) {
@@ -67,7 +71,7 @@ export function getVesselIceTelemetry(vessel) {
     predictionConfidence: 89.7,
     regionName: nearestRegion.region,
     lastUpdated: "2026-09-04T05:39:41Z",
-    source: "NOAA/NSIDC CDR Passive Microwave v6 + PyTorch ConvLSTM Calibrated",
+    source: "NOAA/NSIDC CDR Passive Microwave v6 + Prototype / Simulated Forecast — ConvLSTM Integration Pending",
     forecast5DayTrend,
   };
 }

@@ -105,11 +105,11 @@ export default function IceIntelligencePage() {
     <div className="space-y-6">
       <PageHeader
         title="Ice Intelligence"
-        description="NOAA/NSIDC sea-ice concentration forecasts, dynamic vessel hull clearance, and AI spatial drift trajectory tracking."
+        description="NOAA/NSIDC sea-ice concentration forecasts, dynamic vessel hull clearance, and Statistical / Linear Drift Prediction tracking."
       />
 
       {/* Interactive Vessel Selector & Operational Clearance Header */}
-      <SectionCard title="Active Vessel Telemetry & Hull Risk Assessment" icon={Ship}>
+      <SectionCard title="Simulated Vessel Telemetry & Hull Risk Assessment" icon={Ship}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg bg-polar-raised/70 border border-polar-border">
           {/* Vessel Dropdown */}
           <div className="space-y-1.5">
@@ -184,7 +184,7 @@ export default function IceIntelligencePage() {
       <section>
         <h3 className="font-display text-sm text-white mb-3 flex items-center gap-2">
           <Snowflake className="h-4 w-4 text-polar-accent" />
-          Local Sea-Ice Concentration Telemetry — {activeTelemetry.regionName} (NSIDC CDR 25km Grid)
+          Local Sea-Ice Concentration Data — {activeTelemetry.regionName} (NSIDC CDR 25km Grid)
         </h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <KpiCard label="Current Concentration" value={activeTelemetry.currentConcentration} unit="%" icon={Snowflake} />
@@ -252,7 +252,7 @@ export default function IceIntelligencePage() {
       <section className="mt-8">
         <h3 className="font-display text-sm text-white mb-3 flex items-center gap-2">
           <Navigation className="h-4 w-4 text-polar-accent" />
-          Iceberg Spatial Drift & Trajectory Intelligence (EPSG:3031)
+          Iceberg Statistical / Linear Drift Prediction (EPSG:3031)
         </h3>
         <div className="grid gap-4 lg:grid-cols-3">
           <SectionCard

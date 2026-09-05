@@ -1,7 +1,9 @@
 // data/vessels.js
 // Vessel registry with IMO polar code ice-class classifications (PC1 - PC7 & UNCLASSED)
 
-export const vessels = [
+import { normalizeVessel } from "../lib/dataNormalizer.js";
+
+const rawVessels = [
   {
     id: "RV-POLARSTERN-II",
     name: "RV Polarstern II",
@@ -123,6 +125,8 @@ export const vessels = [
     status: "Underway",
   },
 ];
+
+export const vessels = rawVessels.map(normalizeVessel).filter(Boolean);
 
 export const activeVessel = vessels[0];
 export default vessels;
