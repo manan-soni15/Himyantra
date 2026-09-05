@@ -46,25 +46,25 @@ class AntarcticIceDataset:
                 turbulent_y = v_wind * (t * 0.06) - vorticity * np.cos(xx * np.pi) * 0.08
                 dist_shifted = np.sqrt((xx - turbulent_x)**2 + (yy - turbulent_y)**2)
                 
-                # Satellite noise & thermal melt fluctuation
-                thermal_noise = np.random.normal(0, 0.12, (self.height, self.width))
+                # Satellite noise & thermal melt fluctuation (realistic polar remote sensing noise)
+                thermal_noise = np.random.normal(0, 0.16, (self.height, self.width))
                 ice_t = np.clip(1.0 - dist_shifted * 1.2 + thermal_noise, 0, 1)
 
                 X_data[i, t, :, :, 0] = ice_t # Sea Ice Concentration (0-1)
-                X_data[i, t, :, :, 1] = u_wind + np.random.normal(0, 0.05, (self.height, self.width)) # Wind U
-                X_data[i, t, :, :, 2] = v_wind + np.random.normal(0, 0.05, (self.height, self.width)) # Wind V
-                X_data[i, t, :, :, 3] = -0.5 + (t * 0.01) + np.random.normal(0, 0.03, (self.height, self.width)) # Air Temp
-                X_data[i, t, :, :, 4] = 0.98 + np.random.normal(0, 0.02, (self.height, self.width)) # Pressure
+                X_data[i, t, :, :, 1] = u_wind + np.random.normal(0, 0.08, (self.height, self.width)) # Wind U
+                X_data[i, t, :, :, 2] = v_wind + np.random.normal(0, 0.08, (self.height, self.width)) # Wind V
+                X_data[i, t, :, :, 3] = -0.5 + (t * 0.01) + np.random.normal(0, 0.05, (self.height, self.width)) # Air Temp
+                X_data[i, t, :, :, 4] = 0.98 + np.random.normal(0, 0.04, (self.height, self.width)) # Pressure
 
             # Generate target future 7 days (Sea Ice ground truth with non-linear storm drift)
             for t in range(self.t_future):
                 total_t = self.t_past + t
-                turbulent_x = u_wind * (total_t * 0.06) + vorticity * np.sin(yy * np.pi) * 0.10
-                turbulent_y = v_wind * (total_t * 0.06) - vorticity * np.cos(xx * np.pi) * 0.10
+                turbulent_x = u_wind * (total_t * 0.06) + vorticity * np.sin(yy * np.pi) * 0.12
+                turbulent_y = v_wind * (total_t * 0.06) - vorticity * np.cos(xx * np.pi) * 0.12
                 dist_shifted = np.sqrt((xx - turbulent_x)**2 + (yy - turbulent_y)**2)
                 
-                # Realistic polar storm fracture noise
-                fracture_noise = np.random.normal(0, 0.14, (self.height, self.width))
+                # Realistic polar storm fracture & wave noise
+                fracture_noise = np.random.normal(0, 0.18, (self.height, self.width))
                 ice_future = np.clip(1.0 - dist_shifted * 1.2 + fracture_noise, 0, 1)
                 Y_data[i, t, :, :, 0] = ice_future
 

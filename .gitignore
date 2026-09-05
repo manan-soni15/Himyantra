@@ -6,3 +6,5 @@ out/
 npm-debug.log*
 *.log
 scratch/
+__pycache__/
+*.pyc

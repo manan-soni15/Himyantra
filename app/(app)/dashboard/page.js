@@ -26,6 +26,7 @@ import { currentWeather } from "@/data/weather";
 import { generateRoutes } from "@/lib/routeOptimizer";
 import { alerts } from "@/data/alerts";
 import { calculateSpatialRiskAtLatLon, getRiskLevel } from "@/lib/spatialRiskGrid";
+import { predictTrajectory } from "@/lib/trajectoryPrediction";
 import { useVessel } from "@/context/VesselContext";
 
 // Dynamically import Leaflet map because Leaflet only works in the browser
@@ -45,7 +46,7 @@ const AntarcticMap = dynamic(
 
 export default function DashboardPage() {
   const { activeVessel } = useVessel();
-  
+  const activeTrajectory = predictTrajectory(icebergs[0], 7);
   const [evaluatedRoutes, setEvaluatedRoutes] = useState([]);
 
   useEffect(() => {
@@ -122,7 +123,7 @@ export default function DashboardPage() {
           icon={Map}
           className="lg:col-span-2"
         >
-          <AntarcticMap />
+          <AntarcticMap activeTrajectory={activeTrajectory} activeIcebergId={icebergs[0].id} />
         </SectionCard>
 
         {/* Right Side Panels */}
@@ -211,7 +212,7 @@ export default function DashboardPage() {
 
         {/* Iceberg Threat Warnings */}
         <SectionCard
-          title="Active Iceberg Threat Warnings"
+          title="Active Threat Warnings"
           icon={ShieldAlert}
         >
           <div className="space-y-2 text-xs">

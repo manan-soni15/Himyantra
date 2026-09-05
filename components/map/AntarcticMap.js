@@ -1,9 +1,5 @@
 "use client";
-import SeaIceLayer from "./SeaIceLayer";
-import SeaIceLegend from "./SeaIceLegend";
-import GeographicInformationLayer from "./GeographicInformationLayer";
-import RouteLayer from "./RouteLayer";
-import GraticuleLayer from "./GraticuleLayer";
+
 import { useEffect, useRef, useState } from "react";
 import {
   MapContainer,
@@ -12,19 +8,33 @@ import {
   Tooltip,
   Popup,
   Circle,
+  Polyline,
+  useMap,
 } from "react-leaflet";
 import L from "leaflet";
 import "proj4leaflet";
 import { Maximize2, Minimize2, Grid } from "lucide-react";
+
+import SeaIceLayer from "./SeaIceLayer";
+import SeaIceLegend from "./SeaIceLegend";
+import ProtectedAreasLayer from "./ProtectedAreasLayer";
+import ResearchStationsLayer from "./ResearchStationsLayer";
+import GeographicInformationLayer from "./GeographicInformationLayer";
+import RouteLayer from "./RouteLayer";
+import GraticuleLayer from "./GraticuleLayer";
+
 import { icebergs } from "../../data/icebergs";
-import { researchStations } from "../../data/researchStations";
 import { useVessel } from "../../context/VesselContext";
 
-// Antarctic Polar Stereographic Projection
+/* =========================================================
+   Antarctic Polar Stereographic Projection
+   EPSG:3031
+========================================================= */
+
 const antarcticCRS = new L.Proj.CRS(
   "EPSG:3031",
   "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 " +
-  "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
+    "+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   {
     origin: [-4194304, 4194304],
     resolutions: [
@@ -33,21 +43,9 @@ const antarcticCRS = new L.Proj.CRS(
   }
 );
 
-const locationIcon = L.divIcon({
-  className: "antarctic-location-marker",
-  html: `
-    <div style="
-      width: 10px;
-      height: 10px;
-      background: #67e8f9;
-      border: 2px solid #ffffff;
-      border-radius: 50%;
-      box-shadow: 0 0 10px rgba(103,232,249,0.8);
-    "></div>
-  `,
-  iconSize: [10, 10],
-  iconAnchor: [5, 5],
-});
+/* =========================================================
+   Custom Marker Icons
+========================================================= */
 
 const vesselIcon = L.divIcon({
   className: "vessel-marker",
@@ -65,13 +63,20 @@ const vesselIcon = L.divIcon({
         width: 44px;
         height: 44px;
         border-radius: 50%;
-        border: 2px solid rgba(34,211,238,0.7);
-        animation: pulse 2s infinite;
+        background: rgba(34,211,238,0.18);
+        border: 1px solid rgba(34,211,238,0.5);
+      "></div>
+      <div style="
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(34,211,238,0.35);
       "></div>
       <div style="
         position: relative;
-        font-size: 24px;
-        filter: drop-shadow(0 0 7px rgba(34,211,238,0.9));
+        font-size: 18px;
+        filter: drop-shadow(0 0 6px rgba(34,211,238,0.9));
       ">
         🚢
       </div>
@@ -81,26 +86,20 @@ const vesselIcon = L.divIcon({
   iconAnchor: [22, 22],
 });
 
-// Custom abstract geometric iceberg marker
 const icebergIcon = L.divIcon({
   className: "iceberg-marker",
   html: `
     <div style="
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      filter: drop-shadow(0 0 4px rgba(226, 232, 240, 0.5));
-    ">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2L4 16H20L12 2Z" fill="#94a3b8" stroke="#f8fafc" stroke-width="1.5"/>
-        <path d="M4 16L12 22L20 16" fill="#64748b" stroke="#f8fafc" stroke-width="1.5"/>
-      </svg>
-    </div>
+      width: 14px;
+      height: 14px;
+      background: #f8fafc;
+      border: 2px solid #38bdf8;
+      transform: rotate(45deg);
+      box-shadow: 0 0 10px rgba(56,189,248,0.9);
+    "></div>
   `,
-  iconSize: [24, 24],
-  iconAnchor: [12, 16],
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
 });
 
 const startIcon = L.divIcon({
@@ -171,11 +170,59 @@ const destIcon = L.divIcon({
   iconAnchor: [16, 16],
 });
 
-export default function AntarcticMap({ routes = [], startMarker = null, endMarker = null }) {
+/* =========================================================
+   Map View Controller for Dynamic Iceberg Auto-Centering
+   (Memoized coordinates prevent infinite flyTo render loops)
+========================================================= */
+
+function MapViewController({ center }) {
+  const map = useMap();
+  const prevCenterRef = useRef(null);
+
+  useEffect(() => {
+    if (center && Array.isArray(center) && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+      const [lat, lon] = center;
+      if (!prevCenterRef.current || prevCenterRef.current[0] !== lat || prevCenterRef.current[1] !== lon) {
+        prevCenterRef.current = [lat, lon];
+        map.flyTo([lat, lon], Math.max(3, map.getZoom()), {
+          animate: true,
+          duration: 1.2,
+        });
+      }
+    }
+  }, [center, map]);
+
+  return null;
+}
+
+/* =========================================================
+   AntarcticMap Component
+   (Combines Phase 3.1 Routing & Risk with Teammate Features)
+========================================================= */
+
+export default function AntarcticMap({
+  routes = [],
+  startMarker = null,
+  endMarker = null,
+  activeTrajectory = null,
+  activeIcebergId = null,
+  showTrajectory = false,
+}) {
   const mapRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showRiskGrid, setShowRiskGrid] = useState(routes.length > 0);
   const { activeVessel } = useVessel();
+
+  // Compute map center target: active trajectory if requested, or vessel position, or fallback
+  const activeCenter =
+    showTrajectory &&
+    Array.isArray(activeTrajectory?.predictedPath) &&
+    activeTrajectory.predictedPath.length > 0
+      ? [
+          Number(activeTrajectory.predictedPath[0].lat),
+          Number(activeTrajectory.predictedPath[0].lon),
+        ]
+      : activeVessel?.currentPosition || [-64.77, -64.08];
 
   const vessel = {
     name: activeVessel.name,
@@ -189,13 +236,13 @@ export default function AntarcticMap({ routes = [], startMarker = null, endMarke
     if (mapRef.current && startMarker) {
       mapRef.current.setView([startMarker.lat, startMarker.lon], mapRef.current.getZoom());
     }
-  }, [startMarker?.source]); // Only pan when the source explicitly changes
+  }, [startMarker?.source]);
 
   useEffect(() => {
     if (mapRef.current && endMarker) {
       mapRef.current.setView([endMarker.lat, endMarker.lon], mapRef.current.getZoom());
     }
-  }, [endMarker?.source]); // Only pan when the source explicitly changes
+  }, [endMarker?.source]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -206,7 +253,7 @@ export default function AntarcticMap({ routes = [], startMarker = null, endMarke
     return () => clearTimeout(timeout);
   }, [isFullscreen]);
 
-  // Fix for React 18 Strict Mode "Map container is already initialized" error during Fast Refresh
+  // Fix for React Strict Mode "Map container is already initialized" error during Fast Refresh
   useEffect(() => {
     return () => {
       if (mapRef.current) {
@@ -235,18 +282,18 @@ export default function AntarcticMap({ routes = [], startMarker = null, endMarke
         <div className="absolute right-4 top-4 z-[1000] flex flex-col gap-2">
           <button
             onClick={toggleFullscreen}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-600 bg-slate-950/90 text-cyan-300 shadow-lg backdrop-blur transition hover:bg-slate-800"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950/90 text-cyan-300 shadow-lg backdrop-blur transition hover:bg-slate-800"
             title={isFullscreen ? "Exit fullscreen" : "Maximize map"}
           >
             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </button>
-          
+
           <button
             onClick={() => setShowRiskGrid(!showRiskGrid)}
             className={`flex h-10 w-10 items-center justify-center rounded-lg border shadow-lg backdrop-blur transition ${
-              showRiskGrid 
-                ? "border-cyan-500 bg-cyan-950/90 text-cyan-400 hover:bg-cyan-900/90" 
-                : "border-slate-600 bg-slate-950/90 text-slate-400 hover:bg-slate-800"
+              showRiskGrid
+                ? "border-cyan-500 bg-cyan-950/90 text-cyan-400 hover:bg-cyan-900/90"
+                : "border-slate-700 bg-slate-950/90 text-slate-400 hover:bg-slate-800"
             }`}
             title="Toggle Spatial Risk Grid"
           >
@@ -254,51 +301,100 @@ export default function AntarcticMap({ routes = [], startMarker = null, endMarke
           </button>
         </div>
 
+        {/* Map Container */}
         <MapContainer
-          center={[-64.77, -64.08]} // Centered on Palmer Station/Drake Passage area
+          center={activeCenter}
           zoom={3}
           minZoom={1}
           maxZoom={8}
           crs={antarcticCRS}
-          className="h-full w-full"
+          className="h-full w-full bg-[#0b131e]"
           zoomControl={true}
           ref={mapRef}
+          style={{
+            background: "#0b131e",
+          }}
         >
+          <MapViewController center={activeCenter} />
+
           {/* NASA Antarctic Basemap */}
           <TileLayer
             url="https://gibs.earthdata.nasa.gov/wmts/epsg3031/best/BlueMarble_ShadedRelief_Bathymetry/default/500m/{z}/{y}/{x}.jpeg"
             attribution="NASA GIBS"
             tileSize={512}
             noWrap={true}
+            opacity={1}
           />
-          
+
+          {/* Polar Latitude Rings (80°S, 70°S, 60°S) */}
+          <Circle
+            center={[-90, 0]}
+            radius={1112000}
+            pathOptions={{
+              color: "#94a3b8",
+              weight: 1,
+              opacity: 0.25,
+              fill: false,
+              dashArray: "4 7",
+            }}
+          />
+          <Circle
+            center={[-90, 0]}
+            radius={2224000}
+            pathOptions={{
+              color: "#94a3b8",
+              weight: 1,
+              opacity: 0.20,
+              fill: false,
+              dashArray: "4 7",
+            }}
+          />
+          <Circle
+            center={[-90, 0]}
+            radius={3336000}
+            pathOptions={{
+              color: "#94a3b8",
+              weight: 1,
+              opacity: 0.16,
+              fill: false,
+              dashArray: "4 7",
+            }}
+          />
+
+          {/* Meridian Guides */}
+          <Polyline
+            positions={[[-60, 0], [-90, 0]]}
+            pathOptions={{ color: "#cbd5e1", weight: 1, opacity: 0.18, dashArray: "3 8" }}
+          />
+          <Polyline
+            positions={[[-60, 90], [-90, 0]]}
+            pathOptions={{ color: "#cbd5e1", weight: 1, opacity: 0.15, dashArray: "3 8" }}
+          />
+          <Polyline
+            positions={[[-60, -90], [-90, 0]]}
+            pathOptions={{ color: "#cbd5e1", weight: 1, opacity: 0.15, dashArray: "3 8" }}
+          />
+          <Polyline
+            positions={[[-60, 180], [-90, 0]]}
+            pathOptions={{ color: "#cbd5e1", weight: 1, opacity: 0.15, dashArray: "3 8" }}
+          />
+
           {/* Graticule Layer */}
           <GraticuleLayer visible={true} />
 
+          {/* Sea Ice Concentration Layer */}
           <SeaIceLayer />
-          
-          {/* Geographic Information Layer */}
+
+          {/* Antarctic Specially Protected Areas (ASPA) */}
+          <ProtectedAreasLayer />
+
+          {/* Research Stations Layer */}
+          <ResearchStationsLayer />
+
+          {/* 25 km Geographic Information / Spatial Risk Grid */}
           <GeographicInformationLayer visible={showRiskGrid} />
 
-          {/* Research Stations (Reference Data) */}
-          {researchStations.map((station) => (
-            <Marker key={station.id} position={[station.lat, station.lon]} icon={locationIcon}>
-              <Tooltip permanent direction="top" offset={[0, -8]} className="antarctic-tooltip">
-                {station.name}
-              </Tooltip>
-              <Popup>
-                <div style={{ minWidth: "150px" }}>
-                  <strong>{station.name}</strong>
-                  <hr />
-                  <p className="text-xs italic">Research Station Reference Data</p>
-                  <p><b>Country:</b> {station.country}</p>
-                  <p><b>Status:</b> {station.status}</p>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-
-          {/* Iceberg Markers */}
+          {/* Tracked Iceberg Markers */}
           {icebergs.map((iceberg) => (
             <Marker key={iceberg.id} position={iceberg.position} icon={icebergIcon}>
               <Tooltip direction="top" offset={[0, -15]} className="antarctic-tooltip">
@@ -312,10 +408,94 @@ export default function AntarcticMap({ routes = [], startMarker = null, endMarke
             </Marker>
           ))}
 
-          {/* Evaluated Routes */}
+          {/* Active Iceberg Trajectory Polylines & Forecast Waypoints */}
+          {showTrajectory && activeTrajectory && (
+            <>
+              {Array.isArray(activeTrajectory.historicalPath) && activeTrajectory.historicalPath.length >= 2 && (
+                <Polyline
+                  positions={activeTrajectory.historicalPath
+                    .map((pt) => [Number(pt.lat), Number(pt.lon)])
+                    .filter((pt) => Number.isFinite(pt[0]) && Number.isFinite(pt[1]))}
+                  pathOptions={{
+                    color: "#94a3b8",
+                    weight: 3,
+                    dashArray: "6 8",
+                    opacity: 0.95,
+                  }}
+                />
+              )}
+
+              {Array.isArray(activeTrajectory.predictedPath) && activeTrajectory.predictedPath.length > 0 && (
+                <>
+                  <Polyline
+                    positions={[
+                      ...(Array.isArray(activeTrajectory.currentPosition)
+                        ? [[Number(activeTrajectory.currentPosition[0]), Number(activeTrajectory.currentPosition[1])]]
+                        : [[Number(activeTrajectory.predictedPath[0].lat), Number(activeTrajectory.predictedPath[0].lon)]]),
+                      ...activeTrajectory.predictedPath
+                        .map((pt) => [Number(pt.lat), Number(pt.lon)])
+                        .filter((pt) => Number.isFinite(pt[0]) && Number.isFinite(pt[1])),
+                    ]}
+                    pathOptions={{
+                      color: "#22d3ee",
+                      weight: 4,
+                      dashArray: "8 8",
+                      opacity: 1,
+                      lineCap: "round",
+                      lineJoin: "round",
+                    }}
+                  />
+
+                  {activeTrajectory.predictedPath.map((point, index) => {
+                    const lat = Number(point.lat);
+                    const lon = Number(point.lon);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+                    return (
+                      <Marker
+                        key={`trajectory-point-${activeTrajectory.icebergName || "iceberg"}-${index}`}
+                        position={[lat, lon]}
+                        icon={L.divIcon({
+                          className: "trajectory-milestone-marker",
+                          html: `
+                            <div style="
+                              background: #0284c7;
+                              color: #ffffff;
+                              font-size: 10px;
+                              font-weight: 700;
+                              padding: 3px 6px;
+                              border-radius: 4px;
+                              border: 1px solid #38bdf8;
+                              box-shadow: 0 0 10px rgba(6,182,212,0.9);
+                              white-space: nowrap;
+                            ">
+                              ${point.day ? `+${point.day}d` : `+${index + 1}d`}
+                            </div>
+                          `,
+                          iconSize: [36, 20],
+                          iconAnchor: [18, 10],
+                        })}
+                      >
+                        <Tooltip direction="top" offset={[0, -10]} className="antarctic-tooltip">
+                          <div className="text-xs">
+                            <strong>{activeTrajectory.icebergName || "Active Iceberg"}</strong><br />
+                            Forecast: +{point.day || index + 1} day<br />
+                            Date: {point.date}<br />
+                            Position: {lat.toFixed(2)}°, {lon.toFixed(2)}°
+                          </div>
+                        </Tooltip>
+                      </Marker>
+                    );
+                  })}
+                </>
+              )}
+            </>
+          )}
+
+          {/* Phase 3.1 Evaluated A* Routes */}
           <RouteLayer routes={routes} />
 
-          {/* Start and Destination Markers */}
+          {/* Origin / Start Marker */}
           {startMarker && (
             <Marker position={[startMarker.lat, startMarker.lon]} icon={startIcon}>
               <Tooltip permanent direction="top" offset={[0, -16]} className="antarctic-tooltip font-bold text-green-400">
@@ -333,6 +513,7 @@ export default function AntarcticMap({ routes = [], startMarker = null, endMarke
             </Marker>
           )}
 
+          {/* Destination / End Marker */}
           {endMarker && (
             <Marker position={[endMarker.lat, endMarker.lon]} icon={destIcon}>
               <Tooltip permanent direction="top" offset={[0, -16]} className="antarctic-tooltip font-bold text-red-400">
@@ -357,18 +538,20 @@ export default function AntarcticMap({ routes = [], startMarker = null, endMarke
             pathOptions={{
               color: "#22d3ee",
               fillColor: "#22d3ee",
-              fillOpacity: 0.05,
+              fillOpacity: 0.04,
               weight: 1,
+              opacity: 0.65,
+              dashArray: "5 5",
             }}
           />
 
-          {/* Research Vessel */}
+          {/* Active Research Vessel Marker */}
           <Marker position={vessel.position} icon={vesselIcon}>
-            <Tooltip permanent direction="bottom" offset={[0, 22]}>
+            <Tooltip permanent direction="bottom" offset={[0, 22]} className="vessel-tooltip">
               🚢 {vessel.name}
             </Tooltip>
             <Popup>
-              <div style={{ minWidth: "180px" }}>
+              <div style={{ minWidth: "200px" }}>
                 <strong>{vessel.name}</strong>
                 <hr />
                 <p><b>Status:</b> {vessel.status}</p>
@@ -376,18 +559,33 @@ export default function AntarcticMap({ routes = [], startMarker = null, endMarke
                 <p><b>Heading:</b> {vessel.heading}</p>
                 <p>
                   <b>Position:</b><br />
-                  {vessel.position[0].toFixed(2)}°, {vessel.position[1].toFixed(2)}°
+                  {vessel.position[0].toFixed(4)}°, {vessel.position[1].toFixed(4)}°
                 </p>
               </div>
             </Popup>
           </Marker>
 
+          {/* Sea-Ice Legend */}
           <SeaIceLegend />
         </MapContainer>
 
-        {/* Projection Information */}
-        <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] rounded-md border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs text-slate-400 backdrop-blur">
-          EPSG:3031 • Antarctic Polar Projection
+        {/* Map Badges */}
+        <div className="pointer-events-none absolute left-20 top-4 z-[1000] rounded-lg border border-slate-700 bg-slate-950/90 px-3 py-2 shadow-md backdrop-blur">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-400">
+            HIMYANTRA
+          </div>
+          <div className="text-sm font-semibold text-white">
+            Antarctic Operating Area
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] rounded-md border border-slate-700 bg-slate-950/90 px-3 py-2 text-[11px] text-slate-400 shadow-md backdrop-blur">
+          <div className="font-medium text-cyan-300">
+            EPSG:3031
+          </div>
+          <div>
+            Antarctic Polar Stereographic
+          </div>
         </div>
       </div>
     </div>
