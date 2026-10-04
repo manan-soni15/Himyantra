@@ -103,14 +103,6 @@ npm run build
 npm start
 ```
 
-### 3. Train PyTorch ConvLSTM AI Model (Optional)
-
-```bash
-# Navigate to ML directory and run training script
-python ml/train.py
-```
-
----
 
 ## 📂 Codebase Structure
 
