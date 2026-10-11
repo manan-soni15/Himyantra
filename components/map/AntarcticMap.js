@@ -47,44 +47,57 @@ const antarcticCRS = new L.Proj.CRS(
    Custom Marker Icons
 ========================================================= */
 
-const vesselIcon = L.divIcon({
-  className: "vessel-marker",
-  html: `
-    <div style="
-      position: relative;
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    ">
-      <div style="
-        position: absolute;
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: rgba(34,211,238,0.18);
-        border: 1px solid rgba(34,211,238,0.5);
-      "></div>
-      <div style="
-        position: absolute;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: rgba(34,211,238,0.35);
-      "></div>
+function getRiskColor(level = 'safe') {
+  const normalized = String(level).toLowerCase();
+  if (normalized === 'critical') return '#ef4444';
+  if (normalized === 'high') return '#f97316';
+  if (normalized === 'moderate') return '#f59e0b';
+  return '#22c55e';
+}
+
+function createVesselIcon(riskLevel = 'safe') {
+  const color = getRiskColor(riskLevel);
+
+  return L.divIcon({
+    className: 'vessel-marker',
+    html: `
       <div style="
         position: relative;
-        font-size: 18px;
-        filter: drop-shadow(0 0 6px rgba(34,211,238,0.9));
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       ">
-        🚢
+        <div style="
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background: ${color}20;
+          border: 2px solid ${color};
+          box-shadow: 0 0 12px ${color}99;
+        "></div>
+        <div style="
+          position: absolute;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: ${color}35;
+          border: 1px solid ${color}99;
+        "></div>
+        <div style="
+          position: relative;
+          font-size: 18px;
+          filter: drop-shadow(0 0 6px ${color});
+        ">
+          🚢
+        </div>
       </div>
-    </div>
-  `,
-  iconSize: [44, 44],
-  iconAnchor: [22, 22],
-});
+    `,
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+  });
+}
 
 const icebergIcon = L.divIcon({
   className: "iceberg-marker",
@@ -206,6 +219,7 @@ export default function AntarcticMap({
   endMarker = null,
   activeTrajectory = null,
   activeIcebergId = null,
+  activeVesselRisk = null,
   showTrajectory = false,
 }) {
   const mapRef = useRef(null);
@@ -546,7 +560,7 @@ export default function AntarcticMap({
           />
 
           {/* Active Research Vessel Marker */}
-          <Marker position={vessel.position} icon={vesselIcon}>
+          <Marker key={`active-vessel-${activeVessel.id}-${activeVesselRisk?.level || 'unknown'}`} position={vessel.position} icon={createVesselIcon(activeVesselRisk?.level)}>
             <Tooltip permanent direction="bottom" offset={[0, 22]} className="vessel-tooltip">
               🚢 {vessel.name}
             </Tooltip>
@@ -557,6 +571,14 @@ export default function AntarcticMap({
                 <p><b>Status:</b> {vessel.status}</p>
                 <p><b>Speed:</b> {vessel.speed}</p>
                 <p><b>Heading:</b> {vessel.heading}</p>
+                {activeVesselRisk && (
+                  <>
+                    <p><b>Position Risk:</b> <span style={{ color: getRiskColor(activeVesselRisk.level), fontWeight: 700 }}>{activeVesselRisk.level.toUpperCase()} — {activeVesselRisk.score}/100</span></p>
+                    {Number.isFinite(activeVesselRisk.breakdown?.seaIceConcentration) && (
+                      <p><b>AMSR2 Ice:</b> {activeVesselRisk.breakdown.seaIceConcentration}%</p>
+                    )}
+                  </>
+                )}
                 <p>
                   <b>Position:</b><br />
                   {vessel.position[0].toFixed(4)}°, {vessel.position[1].toFixed(4)}°

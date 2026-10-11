@@ -25,9 +25,9 @@ import { icebergs } from "@/data/icebergs";
 import { currentWeather } from "@/data/weather";
 import { generateRoutes } from "@/lib/routeOptimizer";
 import { alerts } from "@/data/alerts";
-import { calculateSpatialRiskAtLatLon, getRiskLevel } from "@/lib/spatialRiskGrid";
 import { predictTrajectory } from "@/lib/trajectoryPrediction";
 import { useVessel } from "@/context/VesselContext";
+import { useVesselPositionRisk } from "@/hooks/useVesselPositionRisk";
 
 // Dynamically import Leaflet map because Leaflet only works in the browser
 const AntarcticMap = dynamic(
@@ -46,6 +46,7 @@ const AntarcticMap = dynamic(
 
 export default function DashboardPage() {
   const { activeVessel } = useVessel();
+  const { data: positionRiskData, loading: positionRiskLoading } = useVesselPositionRisk(activeVessel);
   const activeTrajectory = predictTrajectory(icebergs[0], 7);
   const [evaluatedRoutes, setEvaluatedRoutes] = useState([]);
 
@@ -59,11 +60,13 @@ export default function DashboardPage() {
     return () => { isSubscribed = false; };
   }, [activeVessel]);
 
-  const spatialRiskData = calculateSpatialRiskAtLatLon(activeVessel.currentPosition[0], activeVessel.currentPosition[1]);
-  const currentRisk = {
-    score: spatialRiskData ? spatialRiskData.environmentalRisk : 0,
-    level: spatialRiskData ? getRiskLevel(spatialRiskData.environmentalRisk).toLowerCase() : 'low'
+  const currentRisk = positionRiskData?.risk || {
+    score: 0,
+    level: 'safe',
   };
+
+  const liveSeaIceConcentration =
+    positionRiskData?.seaIce?.concentration ?? seaIceSummary.currentConcentration;
 
   const topRecommendedRoute = evaluatedRoutes.find((r) => r.isRecommended) || evaluatedRoutes[0];
 
@@ -73,19 +76,19 @@ export default function DashboardPage() {
       <PageHeader
         eyebrow="Simulated Vessel Telemetry"
         title="Mission Control"
-        description="Consolidated view of NSIDC ice concentration, iceberg threats, prototype weather, and active route optimization."
-        action={<StatusBadge status={currentRisk.level === 'safe' ? 'Safe' : currentRisk.level === 'moderate' ? 'Moderate' : 'High'} label={`Risk: ${currentRisk.level.toUpperCase()}`} />}
+        description="Consolidated view of NASA GIBS / AMSR2 ice concentration, iceberg threats, prototype weather, and active route optimization."
+        action={<StatusBadge status={currentRisk.level === 'safe' ? 'Safe' : currentRisk.level === 'moderate' ? 'Moderate' : currentRisk.level === 'high' ? 'High' : 'Critical'} label={`Risk: ${currentRisk.level.toUpperCase()}`} />}
       />
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KpiCard
           label="Sea-Ice Concentration"
-          value={seaIceSummary.currentConcentration}
+          value={liveSeaIceConcentration}
           unit="%"
           icon={Percent}
           status="info"
-          hint="NSIDC CDR 25km Grid"
+          hint={positionRiskData?.seaIce?.live ? "NASA GIBS / AMSR2 25km" : "AMSR2 fallback grid"}
         />
 
         <KpiCard
@@ -101,8 +104,8 @@ export default function DashboardPage() {
           value={currentRisk.score}
           unit="/100"
           icon={ShieldAlert}
-          status={currentRisk.level === 'safe' ? 'safe' : currentRisk.level === 'moderate' ? 'moderate' : 'high'}
-          hint={`Band: ${currentRisk.level.toUpperCase()}`}
+          status={currentRisk.level === 'safe' ? 'safe' : currentRisk.level === 'moderate' ? 'moderate' : currentRisk.level === 'high' ? 'high' : 'critical'}
+          hint={positionRiskLoading ? 'Sampling AMSR2…' : `Band: ${currentRisk.level.toUpperCase()}`}
         />
 
         <KpiCard
@@ -123,7 +126,7 @@ export default function DashboardPage() {
           icon={Map}
           className="lg:col-span-2"
         >
-          <AntarcticMap activeTrajectory={activeTrajectory} activeIcebergId={icebergs[0].id} />
+          <AntarcticMap activeTrajectory={activeTrajectory} activeIcebergId={icebergs[0].id} activeVesselRisk={positionRiskData?.risk} />
         </SectionCard>
 
         {/* Right Side Panels */}

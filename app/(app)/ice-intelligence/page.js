@@ -14,6 +14,7 @@ import { icebergs } from '@/data/icebergs';
 import { calculateRisk } from '@/lib/riskEngine';
 import { predictTrajectory } from '@/lib/trajectoryPrediction';
 import { useVessel } from '@/context/VesselContext';
+import { useVesselPositionRisk } from '@/hooks/useVesselPositionRisk';
 
 const AntarcticMap = dynamic(() => import('@/components/map/AntarcticMap'), {
   ssr: false,
@@ -49,16 +50,19 @@ export default function IceIntelligencePage() {
   const { activeVessel: selectedVessel, activeVesselId: selectedVesselId, setActiveVesselId: setSelectedVesselId, vessels } = useVessel();
   const [selectedIcebergId, setSelectedIcebergId] = useState(icebergs[0].id);
   const [apiForecasts, setApiForecasts] = useState(null);
+  const { data: positionRiskData, loading: positionRiskLoading } = useVesselPositionRisk(selectedVessel);
 
   // Position-Based Telemetry for active vessel
   const activeTelemetry = getVesselIceTelemetry(selectedVessel);
   const vesselMaxIceLimit = ICE_CLASS_LIMITS[selectedVessel.iceClass] || 50;
 
+  const liveCurrentConcentration = positionRiskData?.seaIce?.concentration ?? activeTelemetry.currentConcentration;
+
   // Fetch live PyTorch model predictions for active vessel's sea-ice concentration
   useEffect(() => {
     async function fetchModelForecast() {
       try {
-        const res = await fetch(`/api/predict-seaice?baseConcentration=${activeTelemetry.currentConcentration}`);
+        const res = await fetch(`/api/predict-seaice?baseConcentration=${liveCurrentConcentration}`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.dailyForecasts && Array.isArray(data.dailyForecasts)) {
@@ -70,7 +74,7 @@ export default function IceIntelligencePage() {
       }
     }
     fetchModelForecast();
-  }, [selectedVesselId, activeTelemetry.currentConcentration]);
+  }, [selectedVesselId, liveCurrentConcentration]);
 
   // Model-driven 24h & 48h forecasts
   const modelForecast24h = apiForecasts?.[0]?.seaIceConcentrationPct ?? activeTelemetry.forecast24h;
@@ -79,7 +83,7 @@ export default function IceIntelligencePage() {
   // Model-driven 5-Day Outlook Trend
   const forecast5DayTrend = apiForecasts && apiForecasts.length >= 5
     ? [
-        { day: 'Today', concentration: activeTelemetry.currentConcentration, confidence: 95 },
+        { day: 'Today', concentration: liveCurrentConcentration, confidence: positionRiskData?.seaIce?.live ? 100 : 95 },
         ...apiForecasts.slice(0, 5).map((f) => ({
           day: f.label ? f.label.replace('Day ', '+').replace(' (+', ' (').split(' ')[1] || `+${f.day * 24}h` : `+${f.day * 24}h`,
           concentration: f.seaIceConcentrationPct,
@@ -88,11 +92,12 @@ export default function IceIntelligencePage() {
       ]
     : activeTelemetry.forecast5DayTrend;
 
-  // Calculate Navigation Risk Score dynamically for selected vessel at its specific coordinates
-  const navRisk = calculateRisk({
-    seaIceConcentration: activeTelemetry.currentConcentration,
-    icebergProximityKm: 14.75, // Nearest tracked giant iceberg distance
-    weatherSeverityIndex: 42,
+  // Current-position risk is sampled from NASA AMSR2 at the selected vessel location,
+  // with iceberg proximity and weather included by the vessel-risk API.
+  const navRisk = positionRiskData?.risk || calculateRisk({
+    seaIceConcentration: liveCurrentConcentration,
+    icebergProximityKm: 500,
+    weatherSeverityIndex: 0,
     vesselIceClass: selectedVessel.iceClass,
   });
 
@@ -141,17 +146,17 @@ export default function IceIntelligencePage() {
   const activeTrajectory = predictTrajectory(activeBerg, 7);
 
   // Hull clearance calculation
-  const isIceExceeded = activeTelemetry.currentConcentration > vesselMaxIceLimit;
+  const isIceExceeded = liveCurrentConcentration > vesselMaxIceLimit;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Ice Intelligence"
-        description="NOAA/NSIDC sea-ice concentration forecasts, dynamic vessel hull clearance, and Statistical / Linear Drift Prediction tracking."
+        description="NASA GIBS / AMSR2 sea-ice concentration, vessel-position risk, hull clearance, and iceberg drift intelligence."
       />
 
       {/* Interactive Vessel Selector & Operational Clearance Header */}
-      <SectionCard title="Simulated Vessel Telemetry & Hull Risk Assessment" icon={Ship}>
+      <SectionCard title="Active Vessel Telemetry & Current-Position Risk" icon={Ship}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg bg-polar-raised/70 border border-polar-border">
           {/* Vessel Dropdown */}
           <div className="space-y-1.5">
@@ -188,7 +193,16 @@ export default function IceIntelligencePage() {
               <div className="text-xs text-gray-400">Navigation Risk Rating</div>
               <div className="flex items-center gap-2 mt-1">
                 <StatusBadge status={navRisk.level} />
-                <span className="font-mono text-sm font-bold text-white">Score: {navRisk.score}/100</span>
+                <span className="font-mono text-sm font-bold text-white">Score: {positionRiskLoading ? '…' : `${navRisk.score}/100`}</span>
+              </div>
+            </div>
+
+            <div className="min-w-[250px]">
+              <div className="text-xs text-gray-400">Current Position Factors</div>
+              <div className="mt-1 text-[10px] text-gray-300 font-mono space-y-0.5">
+                <div>AMSR2 Ice: <span className="text-white">{liveCurrentConcentration}%</span></div>
+                <div>Nearest Iceberg: <span className="text-white">{positionRiskData?.iceberg?.nearestDistanceKm != null ? `${positionRiskData.iceberg.nearestDistanceKm.toFixed(1)} km` : '—'}</span></div>
+                <div>Weather Severity: <span className="text-white">{positionRiskData?.weather?.severityIndex ?? '—'}/100</span></div>
               </div>
             </div>
 
@@ -205,7 +219,7 @@ export default function IceIntelligencePage() {
                   <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
                   <div>
                     <div className="text-[11px] font-semibold text-amber-400">OPERATIONAL WARNING</div>
-                    <div className="text-[10px] text-gray-300">Ice ({activeTelemetry.currentConcentration}%) exceeds {selectedVessel.iceClass} limit ({vesselMaxIceLimit}%)</div>
+                    <div className="text-[10px] text-gray-300">Ice ({liveCurrentConcentration}%) exceeds {selectedVessel.iceClass} limit ({vesselMaxIceLimit}%)</div>
                   </div>
                 </>
               ) : (
@@ -213,7 +227,7 @@ export default function IceIntelligencePage() {
                   <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
                   <div>
                     <div className="text-[11px] font-semibold text-emerald-400">HULL CLEARANCE APPROVED</div>
-                    <div className="text-[10px] text-gray-300">Concentration ({activeTelemetry.currentConcentration}%) within {selectedVessel.iceClass} range</div>
+                    <div className="text-[10px] text-gray-300">Concentration ({liveCurrentConcentration}%) within {selectedVessel.iceClass} range</div>
                   </div>
                 </>
               )}
@@ -226,13 +240,13 @@ export default function IceIntelligencePage() {
       <section>
         <h3 className="font-display text-sm text-white mb-3 flex items-center gap-2">
           <Snowflake className="h-4 w-4 text-polar-accent" />
-          Local Sea-Ice Concentration Data — {activeTelemetry.regionName} (NSIDC CDR 25km Grid)
+          Current Sea-Ice Concentration — NASA GIBS / AMSR2 25km
         </h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <KpiCard label="Current Concentration" value={activeTelemetry.currentConcentration} unit="%" icon={Snowflake} />
+          <KpiCard label="Current AMSR2 Concentration" value={liveCurrentConcentration} unit="%" icon={Snowflake} />
           <KpiCard label="24h Model Forecast" value={modelForecast24h} unit="%" icon={Snowflake} />
           <KpiCard label="48h Model Forecast" value={modelForecast48h} unit="%" icon={Snowflake} />
-          <KpiCard label="Prediction Confidence" value={activeTelemetry.predictionConfidence} unit="%" icon={Gauge} />
+          <KpiCard label="Prediction Confidence" value={positionRiskData?.risk ? (positionRiskData.seaIce.live ? 100 : activeTelemetry.predictionConfidence) : activeTelemetry.predictionConfidence} unit="%" icon={Gauge} />
         </div>
 
         {/* Recharts Sea-Ice Concentration Forecast Chart */}
@@ -242,7 +256,7 @@ export default function IceIntelligencePage() {
           className="mt-4"
         >
           <div className="h-[420px] w-full overflow-hidden rounded-md border border-polar-borderLight bg-polar-raised/40 p-2">
-            <SeaIceForecastChart baseConcentration={activeTelemetry.currentConcentration} />
+            <SeaIceForecastChart baseConcentration={liveCurrentConcentration} />
           </div>
         </SectionCard>
 
@@ -284,7 +298,7 @@ export default function IceIntelligencePage() {
                 <Info className="h-3.5 w-3.5 text-polar-accent" />
                 Forecast horizon tailored to {selectedVessel.name} location ({activeTelemetry.regionName}).
               </span>
-              <span>Updated: {activeTelemetry.lastUpdated.split('T')[0]}</span>
+              <span>Source: {positionRiskData?.seaIce?.live ? 'NASA GIBS / AMSR2' : 'Fallback grid'}</span>
             </div>
           </div>
         </SectionCard>
@@ -299,6 +313,7 @@ export default function IceIntelligencePage() {
         <AntarcticMap
   activeTrajectory={activeTrajectory}
   activeIcebergId={selectedIcebergId}
+  activeVesselRisk={positionRiskData?.risk}
   showTrajectory={true}
    />
       </SectionCard>

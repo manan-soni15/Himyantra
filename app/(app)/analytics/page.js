@@ -6,6 +6,7 @@ import KpiCard from '@/components/KpiCard';
 import SectionCard from '@/components/SectionCard';
 import StatusBadge from '@/components/StatusBadge';
 import { useVessel } from '@/context/VesselContext';
+import { useVesselPositionRisk } from '@/hooks/useVesselPositionRisk';
 import { calculateRisk } from '@/lib/riskEngine';
 
 // Vessel-specific voyage telemetry database for dynamic recalculation
@@ -126,6 +127,7 @@ const VESSEL_TELEMETRY_MAP = {
 
 export default function AnalyticsPage() {
   const { activeVessel } = useVessel();
+  const { data: positionRiskData } = useVesselPositionRisk(activeVessel);
 
   // Retrieve active vessel specific telemetry or fallback default
   const telemetry = VESSEL_TELEMETRY_MAP[activeVessel.id] || VESSEL_TELEMETRY_MAP['MV-POLAR-EXPLORER'];
@@ -136,8 +138,8 @@ export default function AnalyticsPage() {
   const speedKnots = activeVessel.maxSpeedKnots || 16.5;
   const etaDays = (telemetry.distanceRemaining / (speedKnots * 24)).toFixed(1);
 
-  // Dynamic Risk Engine Score Calculation
-  const riskResult = calculateRisk({
+  // Use the same current-position risk as Mission Control / Ice Intelligence.
+  const riskResult = positionRiskData?.risk || calculateRisk({
     seaIceConcentration: telemetry.localIceConcentration,
     icebergProximityKm: telemetry.icebergDistKm,
     weatherSeverityIndex: 42,
@@ -323,3 +325,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
