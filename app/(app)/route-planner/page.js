@@ -9,6 +9,7 @@ import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { generateRoutes } from '@/lib/routeOptimizer';
 import { useVessel } from '@/context/VesselContext';
+import { useVesselPositionRisk } from '@/hooks/useVesselPositionRisk';
 import { researchStations } from '@/data/researchStations';
 import { latLonToXY } from '@/lib/coordinateUtils';
 import { GRID_MIN_X, GRID_MAX_X, GRID_MIN_Y, GRID_MAX_Y } from '@/lib/spatialRiskGrid';
@@ -51,6 +52,7 @@ function validateCoordinates(lat, lon) {
 
 export default function RoutePlannerPage() {
   const { activeVessel, vessels } = useVessel();
+  const { data: positionRiskData, loading: positionRiskLoading } = useVesselPositionRisk(activeVessel);
   const [objective, setObjective] = useState('Balanced');
 
   // Start / End State
@@ -193,8 +195,8 @@ export default function RoutePlannerPage() {
           <div className="bg-amber-950/40 border border-amber-900/50 p-4 rounded-lg flex items-start gap-3 text-amber-200">
             <Info className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
             <div className="text-sm">
-              <strong className="block text-amber-400 mb-1">Phase 3 A* Routing Active</strong>
-              Routes are generated asynchronously via Web Worker A* pathfinding over the 25km grid.
+              <strong className="block text-amber-400 mb-1">Phase 3.2 Multi-Route A* Active</strong>
+              HIMYANTRA evaluates multiple A* route strategies over the 25km environmental grid, then ranks them against your selected objective.
             </div>
           </div>
 
@@ -305,6 +307,30 @@ export default function RoutePlannerPage() {
                   <span>Cruising Speed:</span>
                   <span className="font-mono text-white">{activeVessel?.maxSpeedKnots || activeVessel?.speedKnots || 0} kts</span>
                 </div>
+                <div className="pt-2 mt-1 border-t border-polar-border flex items-center justify-between gap-3">
+                  <span className="text-gray-300">Current Position Risk</span>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge
+                      status={
+                        positionRiskData?.risk?.level === 'safe'
+                          ? 'Safe'
+                          : positionRiskData?.risk?.level === 'moderate'
+                            ? 'Moderate'
+                            : positionRiskData?.risk?.level === 'high'
+                              ? 'High'
+                              : 'Critical'
+                      }
+                    />
+                    <span className="font-mono font-semibold text-white">
+                      {positionRiskLoading ? '—' : `${positionRiskData?.risk?.score ?? 0}/100`}
+                    </span>
+                  </div>
+                </div>
+                {positionRiskData?.seaIce?.concentration != null && (
+                  <div className="text-[10px] text-gray-500 text-right">
+                    AMSR2 at vessel: {positionRiskData.seaIce.concentration}%
+                  </div>
+                )}
               </div>
             </div>
           </SectionCard>
@@ -314,15 +340,20 @@ export default function RoutePlannerPage() {
             <SectionCard title="Strategic Recommendation" icon={BrainCircuit}>
               <div className="p-8 flex flex-col items-center justify-center text-gray-400">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-polar-accent mb-4"></div>
-                <p>Calculating optimal A* route...</p>
+                <p>Evaluating route candidates with A*...</p>
               </div>
             </SectionCard>
           ) : recommendedRoute && !recommendedRoute.isInvalid ? (
              <SectionCard title="Strategic Recommendation" icon={BrainCircuit}>
                <div className="p-4 bg-polar-raised/60 rounded border border-polar-border space-y-3">
-                 <div className="flex items-center gap-2">
-                   <CheckCircle2 className="h-5 w-5 text-green-400" />
-                   <span className="font-bold text-white text-sm">{recommendedRoute.name}</span>
+                 <div className="flex items-center justify-between gap-2">
+                   <div className="flex items-center gap-2">
+                     <CheckCircle2 className="h-5 w-5 text-green-400" />
+                     <span className="font-bold text-white text-sm">{recommendedRoute.name}</span>
+                   </div>
+                   <span className="text-[10px] uppercase tracking-wide text-polar-accent border border-polar-accent/30 bg-polar-accent/10 px-2 py-1 rounded">
+                     {recommendedRoute.strategyLabel}
+                   </span>
                  </div>
                  <p className="text-xs text-gray-300 leading-relaxed">
                    {recommendedRoute.recommendationExplanation}
@@ -357,6 +388,12 @@ export default function RoutePlannerPage() {
                        <div>• Max Encounter Risk: {Math.round(recommendedRoute.spatialMetrics.maximumRisk)}/100</div>
                        <div>• Critical Zone Exposure: {Math.round(recommendedRoute.spatialMetrics.criticalRiskExposurePercent)}%</div>
                        <div>• Data Completeness: {Math.round(recommendedRoute.spatialMetrics.routeDataCompleteness * 100)}%</div>
+                       {recommendedRoute.spatialMetrics.averageSeaIceRisk != null && (
+                         <div>• Avg Sea-Ice Risk: {Math.round(recommendedRoute.spatialMetrics.averageSeaIceRisk)}/100</div>
+                       )}
+                       {recommendedRoute.spatialMetrics.averageIcebergRisk != null && (
+                         <div>• Avg Iceberg Risk: {Math.round(recommendedRoute.spatialMetrics.averageIcebergRisk)}/100</div>
+                       )}
                      </div>
                    </div>
                  )}
@@ -381,7 +418,7 @@ export default function RoutePlannerPage() {
 
           {/* Comparison */}
           {generatedRoutes.length > 0 && (
-             <SectionCard title="Route Comparison" icon={Table2}>
+             <SectionCard title={`Route Comparison (${generatedRoutes.filter((route) => !route.isInvalid).length} candidates)`} icon={Table2}>
                <div className="overflow-x-auto">
                  <DataTable columns={COMPARISON_COLUMNS} rows={tableRows} />
                </div>
