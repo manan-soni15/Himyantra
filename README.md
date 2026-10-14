@@ -8,7 +8,7 @@
 
 **Himyantra** (हिम-यंत्र) is an advanced AI-powered Antarctic polar maritime intelligence platform designed to maximize vessel safety, optimize bunker fuel consumption, and prevent ice entrapment for research icebreakers and expedition ships navigating the Southern Ocean (`EPSG:3031` Antarctic Polar Stereographic projection).
 
-By fusing satellite passive microwave observation data, hydrodynamic iceberg drift physics, and a deep learning **PyTorch ConvLSTM** neural network, Himyantra projects 5-day spatial sea-ice concentration fields and optimizes safe transit corridors under **IMO Polar Code guidelines (`PC1`–`PC7`)**.
+By fusing satellite passive microwave observation data, hydrodynamic iceberg drift physics, and a deep learning **PyTorch ConvLSTM** neural network, Himyantra projects 5-day spatial sea ice concentration fields and optimizes safe transit corridors under **IMO Polar Code guidelines (`PC1`–`PC7`)**.
 
 ---
 
