@@ -5,7 +5,6 @@ import { Map, Table2, BrainCircuit, ShieldAlert, CheckCircle2, Navigation, Ancho
 import PageHeader from '@/components/PageHeader';
 import SectionCard from '@/components/SectionCard';
 import { SelectField, TextField } from '@/components/FormField';
-import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { generateRoutes } from '@/lib/routeOptimizer';
 import { useVessel } from '@/context/VesselContext';
@@ -28,13 +27,6 @@ const AntarcticMap = dynamic(
 );
 
 const OBJECTIVES = ['Balanced', 'Safest', 'Fuel-efficient', 'Fastest'];
-
-const COMPARISON_COLUMNS = [
-  { key: 'route', label: 'Route Option' },
-  { key: 'metrics', label: 'Time / Dist' },
-  { key: 'risk', label: 'Env Risk' },
-  { key: 'fuel', label: 'Est Fuel' },
-];
 
 function validateCoordinates(lat, lon) {
   if (isNaN(lat) || lat < -90 || lat > 90) return { valid: false, error: 'Invalid Latitude' };
@@ -91,7 +83,6 @@ export default function RoutePlannerPage() {
         endPoint,
         vessel: activeVessel || vessels[0],
         objective,
-        weatherSeverityIndex: positionRiskData?.weather?.severityIndex ?? 0,
       }).then(results => {
         if (isSubscribed) {
           setGeneratedRoutes(results);
@@ -114,7 +105,7 @@ export default function RoutePlannerPage() {
     }
 
     return () => { isSubscribed = false; };
-  }, [startPoint.lat, startPoint.lon, endPoint.lat, endPoint.lon, activeVessel, objective, positionRiskData?.weather?.severityIndex]);
+  }, [startPoint.lat, startPoint.lon, endPoint.lat, endPoint.lon, activeVessel, objective]);
 
   const handleObjectiveChange = (newObjective) => {
     setObjective(newObjective);
@@ -154,34 +145,8 @@ export default function RoutePlannerPage() {
 
   const recommendedRoute = generatedRoutes.find((r) => r.isRecommended) || generatedRoutes[0];
 
-  const tableRows = generatedRoutes.map((r) => ({
-    route: (
-      <div>
-        <div className="font-semibold text-white flex items-center gap-1.5">
-          {r.name}
-          {r.isRecommended && (
-            <span className="bg-polar-accent/20 text-polar-accent text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">REC</span>
-          )}
-        </div>
-      </div>
-    ),
-    metrics: (
-      <div className="text-xs text-gray-300">
-        <div>{r.estimatedDays} d</div>
-        <div className="text-gray-400">{r.distanceNauticalMiles} NM</div>
-      </div>
-    ),
-    risk: (
-      <div className="flex flex-col gap-1 items-start">
-        <div className="flex items-center gap-1.5">
-          <span className="font-mono text-white text-xs">{r.routeRiskScore}</span>
-          <StatusBadge status={r.riskBand === 'safe' ? 'Safe' : r.riskBand === 'moderate' ? 'Moderate' : r.riskBand === 'high' ? 'High' : 'Critical'} />
-        </div>
-        {r.spatialMetrics && <span className="text-[9px] text-gray-400">Max: {Math.round(r.spatialMetrics.maximumRisk)}</span>}
-      </div>
-    ),
-    fuel: <span className="text-xs font-mono">{r.estimatedFuelTons} T</span>,
-  }));
+  const comparisonRoutes = generatedRoutes.filter((route) => !route.isInvalid);
+
 
   return (
     <div>
@@ -189,6 +154,86 @@ export default function RoutePlannerPage() {
         title="Route Planner"
         description="Dynamic spatial route decision-support evaluated against current environmental risk grids."
       />
+
+      {/* Route comparison is kept full-width so the available horizontal space is used
+          and all generated strategies are visible without pushing them below the fold. */}
+      {comparisonRoutes.length > 0 && (
+        <SectionCard
+          title={`Route Comparison (${comparisonRoutes.length} candidates)`}
+          icon={Table2}
+          className="mb-4"
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {comparisonRoutes.map((route) => {
+              const riskStatus =
+                route.riskBand === 'safe'
+                  ? 'Safe'
+                  : route.riskBand === 'moderate'
+                    ? 'Moderate'
+                    : route.riskBand === 'high'
+                      ? 'High'
+                      : 'Critical';
+
+              return (
+                <div
+                  key={`top-${route.name}-${route.distanceNauticalMiles}`}
+                  className={
+                    `rounded-lg border p-3.5 transition-colors ${
+                      route.isRecommended
+                        ? 'border-polar-accent/40 bg-polar-accent/5'
+                        : 'border-polar-border bg-polar-base/60'
+                    }`
+                  }
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-white text-sm">{route.name}</span>
+                        {route.isRecommended && (
+                          <span className="bg-polar-accent/20 text-polar-accent text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">
+                            REC
+                          </span>
+                        )}
+                      </div>
+                      {route.strategyLabel && (
+                        <div className="mt-1 text-[10px] text-gray-500">{route.strategyLabel}</div>
+                      )}
+                    </div>
+                    <StatusBadge status={riskStatus} />
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="rounded-md border border-polar-border bg-polar-raised/50 px-2.5 py-2">
+                      <div className="text-[10px] text-gray-500">Time</div>
+                      <div className="mt-0.5 font-mono text-xs font-semibold text-white">{route.estimatedDays} d</div>
+                    </div>
+                    <div className="rounded-md border border-polar-border bg-polar-raised/50 px-2.5 py-2">
+                      <div className="text-[10px] text-gray-500">Distance</div>
+                      <div className="mt-0.5 font-mono text-xs font-semibold text-white">{route.distanceNauticalMiles} NM</div>
+                    </div>
+                    <div className="rounded-md border border-polar-border bg-polar-raised/50 px-2.5 py-2">
+                      <div className="text-[10px] text-gray-500">Env. Risk</div>
+                      <div className="mt-0.5 font-mono text-xs font-semibold text-white">{route.routeRiskScore}/100</div>
+                    </div>
+                    <div className="rounded-md border border-polar-border bg-polar-raised/50 px-2.5 py-2">
+                      <div className="text-[10px] text-gray-500">Est. Fuel</div>
+                      <div className="mt-0.5 font-mono text-xs font-semibold text-white">{route.estimatedFuelTons} T</div>
+                    </div>
+                  </div>
+
+                  {route.spatialMetrics && (
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500">
+                      <span>Max {Math.round(route.spatialMetrics.maximumRisk)}</span>
+                      <span>Critical {Math.round(route.spatialMetrics.criticalRiskExposurePercent)}%</span>
+                      <span>Data {Math.round(route.spatialMetrics.routeDataCompleteness * 100)}%</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* LEFT / MAIN: Map Visualization */}
@@ -332,12 +377,6 @@ export default function RoutePlannerPage() {
                     AMSR2 at vessel: {positionRiskData.seaIce.concentration}%
                   </div>
                 )}
-                {positionRiskData?.weather && (
-                  <div className="text-[10px] text-gray-500 text-right space-y-0.5">
-                    <div>ECMWF IFS: {positionRiskData.weather.live ? `${positionRiskData.weather.windSpeedKnots ?? '—'} kt wind` : 'fallback weather grid'}</div>
-                    <div>Weather Severity: {positionRiskData.weather.severityIndex ?? '—'}/100</div>
-                  </div>
-                )}
               </div>
             </div>
           </SectionCard>
@@ -401,9 +440,6 @@ export default function RoutePlannerPage() {
                        {recommendedRoute.spatialMetrics.averageIcebergRisk != null && (
                          <div>• Avg Iceberg Risk: {Math.round(recommendedRoute.spatialMetrics.averageIcebergRisk)}/100</div>
                        )}
-                       {recommendedRoute.spatialMetrics.liveWeatherSeverityIndex != null && (
-                         <div>• ECMWF Weather Context: {Math.round(recommendedRoute.spatialMetrics.liveWeatherSeverityIndex)}/100</div>
-                       )}
                      </div>
                    </div>
                  )}
@@ -426,17 +462,11 @@ export default function RoutePlannerPage() {
             </SectionCard>
           )}
 
-          {/* Comparison */}
-          {generatedRoutes.length > 0 && (
-             <SectionCard title={`Route Comparison (${generatedRoutes.filter((route) => !route.isInvalid).length} candidates)`} icon={Table2}>
-               <div className="overflow-x-auto">
-                 <DataTable columns={COMPARISON_COLUMNS} rows={tableRows} />
-               </div>
-             </SectionCard>
-          )}
+
 
         </div>
       </div>
     </div>
   );
 }
+
