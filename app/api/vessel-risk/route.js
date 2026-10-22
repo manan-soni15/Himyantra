@@ -4,6 +4,8 @@ import { sampleAMSR2SeaIce } from '@/lib/amsr2SeaIce';
 import { calculateRisk } from '@/lib/riskEngine';
 import { calculateSpatialRiskAtLatLon } from '@/lib/spatialRiskGrid';
 import { seaIceGrid } from '@/data/seaIce';
+import { fetchEcmwfWeather } from '@/lib/ecmwfWeather';
+import { calculateWeatherSeverity, getWeatherSeverityBand } from '@/lib/weatherRisk';
 
 function fallbackSeaIce(lat, lon) {
   let nearest = null;
@@ -59,22 +61,26 @@ export async function GET(request) {
   }
 
   let seaIce;
+  let ecmwfWeather = null;
 
-  try {
+  const [seaIceResult, weatherResult] = await Promise.allSettled([
+    sampleAMSR2SeaIce(lat, lon),
+    fetchEcmwfWeather(lat, lon, { forecastHours: 48 }),
+  ]);
+
+  if (seaIceResult.status === 'fulfilled') {
     seaIce = {
-      ...(await sampleAMSR2SeaIce(lat, lon)),
+      ...seaIceResult.value,
       live: true,
     };
-  } catch (error) {
-    const fallback =
-      fallbackSeaIce(lat, lon);
+  } else {
+    const fallback = fallbackSeaIce(lat, lon);
 
     if (!fallback) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            'Could not sample AMSR2 sea ice.',
+          error: 'Could not sample AMSR2 sea ice.',
         },
         { status: 503 }
       );
@@ -83,23 +89,26 @@ export async function GET(request) {
     seaIce = {
       ...fallback,
       error:
-        error instanceof Error
-          ? error.message
+        seaIceResult.reason instanceof Error
+          ? seaIceResult.reason.message
           : 'AMSR2 sampling failed',
     };
   }
 
-  // Use current project iceberg/weather logic.
-  // Do NOT use its sea-ice component.
-  const spatial =
-    calculateSpatialRiskAtLatLon(lat, lon);
+  if (weatherResult.status === 'fulfilled') {
+    ecmwfWeather = weatherResult.value;
+  }
+
+  // Use the spatial grid for iceberg proximity and as the weather fallback.
+  const spatial = calculateSpatialRiskAtLatLon(lat, lon);
 
   const icebergProximityKm =
-    spatial?.metadata
-      ?.nearestIcebergDistanceKm ?? 500;
+    spatial?.metadata?.nearestIcebergDistanceKm ?? 500;
 
-  const weatherSeverityIndex =
-    spatial?.weatherRisk ?? 0;
+  const fallbackWeatherSeverity = spatial?.weatherRisk ?? 0;
+  const weatherSeverityIndex = ecmwfWeather
+    ? calculateWeatherSeverity(ecmwfWeather.current)
+    : fallbackWeatherSeverity;
 
   const risk = calculateRisk({
     seaIceConcentration:
@@ -136,10 +145,41 @@ export async function GET(request) {
         spatial?.icebergRisk ?? 0,
     },
 
-    weather: {
-      severityIndex:
-        weatherSeverityIndex,
-    },
+    weather: ecmwfWeather
+      ? {
+          live: true,
+          source: ecmwfWeather.source,
+          model: ecmwfWeather.model,
+          resolutionKm: ecmwfWeather.resolutionKm,
+          updatedAt: ecmwfWeather.updatedAt,
+          severityIndex: weatherSeverityIndex,
+          severityBand: getWeatherSeverityBand(weatherSeverityIndex),
+          windSpeedKnots: ecmwfWeather.current.windSpeedKnots,
+          windDirectionDegrees: ecmwfWeather.current.windDirectionDegrees,
+          windGustKnots: ecmwfWeather.current.windGustKnots,
+          temperatureCelsius: ecmwfWeather.current.temperatureCelsius,
+          pressureHpa: ecmwfWeather.current.pressureHpa,
+          visibilityKm: ecmwfWeather.current.visibilityKm,
+          precipitationMm: ecmwfWeather.current.precipitationMm,
+          forecast: ecmwfWeather.hourly,
+        }
+      : {
+          live: false,
+          source: 'Fallback spatial weather grid',
+          model: null,
+          resolutionKm: null,
+          updatedAt: null,
+          severityIndex: weatherSeverityIndex,
+          severityBand: getWeatherSeverityBand(weatherSeverityIndex),
+          windSpeedKnots: null,
+          windDirectionDegrees: null,
+          windGustKnots: null,
+          temperatureCelsius: null,
+          pressureHpa: null,
+          visibilityKm: null,
+          precipitationMm: null,
+          forecast: null,
+        },
 
     risk,
   });

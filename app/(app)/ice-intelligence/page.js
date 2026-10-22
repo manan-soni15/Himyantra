@@ -15,6 +15,7 @@ import { calculateRisk } from '@/lib/riskEngine';
 import { predictTrajectory } from '@/lib/trajectoryPrediction';
 import { useVessel } from '@/context/VesselContext';
 import { useVesselPositionRisk } from '@/hooks/useVesselPositionRisk';
+import CurrentWeatherCard from '@/components/weather/CurrentWeatherCard';
 
 const AntarcticMap = dynamic(() => import('@/components/map/AntarcticMap'), {
   ssr: false,
@@ -234,6 +235,13 @@ export default function IceIntelligencePage() {
             </div>
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Current Polar Weather — ECMWF IFS" icon={Navigation}>
+        <CurrentWeatherCard
+          weather={positionRiskData?.weather?.live ? positionRiskData.weather : null}
+          loading={positionRiskLoading}
+        />
       </SectionCard>
 
       {/* Sea-Ice Concentration Telemetry KPIs */}

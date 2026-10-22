@@ -91,6 +91,7 @@ export default function RoutePlannerPage() {
         endPoint,
         vessel: activeVessel || vessels[0],
         objective,
+        weatherSeverityIndex: positionRiskData?.weather?.severityIndex ?? 0,
       }).then(results => {
         if (isSubscribed) {
           setGeneratedRoutes(results);
@@ -113,7 +114,7 @@ export default function RoutePlannerPage() {
     }
 
     return () => { isSubscribed = false; };
-  }, [startPoint.lat, startPoint.lon, endPoint.lat, endPoint.lon, activeVessel, objective]);
+  }, [startPoint.lat, startPoint.lon, endPoint.lat, endPoint.lon, activeVessel, objective, positionRiskData?.weather?.severityIndex]);
 
   const handleObjectiveChange = (newObjective) => {
     setObjective(newObjective);
@@ -331,6 +332,12 @@ export default function RoutePlannerPage() {
                     AMSR2 at vessel: {positionRiskData.seaIce.concentration}%
                   </div>
                 )}
+                {positionRiskData?.weather && (
+                  <div className="text-[10px] text-gray-500 text-right space-y-0.5">
+                    <div>ECMWF IFS: {positionRiskData.weather.live ? `${positionRiskData.weather.windSpeedKnots ?? '—'} kt wind` : 'fallback weather grid'}</div>
+                    <div>Weather Severity: {positionRiskData.weather.severityIndex ?? '—'}/100</div>
+                  </div>
+                )}
               </div>
             </div>
           </SectionCard>
@@ -393,6 +400,9 @@ export default function RoutePlannerPage() {
                        )}
                        {recommendedRoute.spatialMetrics.averageIcebergRisk != null && (
                          <div>• Avg Iceberg Risk: {Math.round(recommendedRoute.spatialMetrics.averageIcebergRisk)}/100</div>
+                       )}
+                       {recommendedRoute.spatialMetrics.liveWeatherSeverityIndex != null && (
+                         <div>• ECMWF Weather Context: {Math.round(recommendedRoute.spatialMetrics.liveWeatherSeverityIndex)}/100</div>
                        )}
                      </div>
                    </div>

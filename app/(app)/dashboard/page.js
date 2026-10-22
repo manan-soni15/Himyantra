@@ -13,7 +13,6 @@ import {
   Route as RouteIcon,
   CheckCircle2,
   AlertTriangle,
-  Wind,
 } from "lucide-react";
 
 import PageHeader from "@/components/PageHeader";
@@ -22,12 +21,12 @@ import SectionCard from "@/components/SectionCard";
 import StatusBadge from "@/components/StatusBadge";
 import { seaIceSummary, seaIceForecastTimeseries } from "@/data/seaIce";
 import { icebergs } from "@/data/icebergs";
-import { currentWeather } from "@/data/weather";
 import { generateRoutes } from "@/lib/routeOptimizer";
 import { alerts } from "@/data/alerts";
 import { predictTrajectory } from "@/lib/trajectoryPrediction";
 import { useVessel } from "@/context/VesselContext";
 import { useVesselPositionRisk } from "@/hooks/useVesselPositionRisk";
+import CurrentWeatherCard from "@/components/weather/CurrentWeatherCard";
 
 // Dynamically import Leaflet map because Leaflet only works in the browser
 const AntarcticMap = dynamic(
@@ -52,13 +51,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isSubscribed = true;
-    generateRoutes({ vessel: activeVessel, objective: 'Safest' })
+    generateRoutes({ vessel: activeVessel, objective: 'Safest', weatherSeverityIndex: positionRiskData?.weather?.severityIndex ?? 0 })
       .then(routes => {
         if (isSubscribed) setEvaluatedRoutes(routes);
       })
       .catch(err => console.error(err));
     return () => { isSubscribed = false; };
-  }, [activeVessel]);
+  }, [activeVessel, positionRiskData?.weather?.severityIndex]);
 
   const currentRisk = positionRiskData?.risk || {
     score: 0,
@@ -160,28 +159,16 @@ export default function DashboardPage() {
             )}
           </SectionCard>
 
-          {/* Weather */}
+          {/* ECMWF IFS Weather */}
           <SectionCard
-            title="Prototype Weather Data"
+            title="Current Polar Weather"
             icon={CloudSun}
             className="flex-1"
           >
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center bg-polar-base p-2.5 rounded border border-polar-border">
-                <span className="text-gray-300 flex items-center gap-1.5">
-                  <Wind className="h-3.5 w-3.5 text-polar-accent" /> Wind Velocity
-                </span>
-                <span className="font-mono text-white font-semibold">{currentWeather.windSpeedKnots} kts ({currentWeather.windDirectionDegrees}°)</span>
-              </div>
-              <div className="flex justify-between items-center bg-polar-base p-2.5 rounded border border-polar-border">
-                <span className="text-gray-300">Air / Surface Temp</span>
-                <span className="font-mono text-white font-semibold">{currentWeather.airTempCelsius}°C / {currentWeather.seaSurfaceTempCelsius}°C</span>
-              </div>
-              <div className="flex justify-between items-center bg-polar-base p-2.5 rounded border border-polar-border">
-                <span className="text-gray-300">MSL Pressure</span>
-                <span className="font-mono text-white font-semibold">{currentWeather.mslPressureHpa} hPa</span>
-              </div>
-            </div>
+            <CurrentWeatherCard
+              weather={positionRiskData?.weather?.live ? positionRiskData.weather : null}
+              loading={positionRiskLoading}
+            />
           </SectionCard>
         </div>
       </div>

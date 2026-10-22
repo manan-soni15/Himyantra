@@ -188,21 +188,41 @@ const destIcon = L.divIcon({
    (Memoized coordinates prevent infinite flyTo render loops)
 ========================================================= */
 
+function normalizeCoordinatePair(value, fallback = null) {
+  if (!Array.isArray(value) || value.length !== 2) return fallback;
+
+  const lat = Number(value[0]);
+  const lon = Number(value[1]);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return fallback;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return fallback;
+
+  return [lat, lon];
+}
+
 function MapViewController({ center }) {
   const map = useMap();
   const prevCenterRef = useRef(null);
 
   useEffect(() => {
-    if (center && Array.isArray(center) && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
-      const [lat, lon] = center;
-      if (!prevCenterRef.current || prevCenterRef.current[0] !== lat || prevCenterRef.current[1] !== lon) {
-        prevCenterRef.current = [lat, lon];
-        map.flyTo([lat, lon], Math.max(3, map.getZoom()), {
-          animate: true,
-          duration: 1.2,
-        });
-      }
+    const safeCenter = normalizeCoordinatePair(center);
+    if (!safeCenter) return;
+
+    const [lat, lon] = safeCenter;
+
+    if (
+      prevCenterRef.current &&
+      prevCenterRef.current[0] === lat &&
+      prevCenterRef.current[1] === lon
+    ) {
+      return;
     }
+
+    prevCenterRef.current = safeCenter;
+    map.flyTo(safeCenter, Math.max(3, map.getZoom()), {
+      animate: true,
+      duration: 1.2,
+    });
   }, [center, map]);
 
   return null;
@@ -227,36 +247,54 @@ export default function AntarcticMap({
   const [showRiskGrid, setShowRiskGrid] = useState(routes.length > 0);
   const { activeVessel } = useVessel();
 
-  // Compute map center target: active trajectory if requested, or vessel position, or fallback
-  const activeCenter =
-    showTrajectory &&
-    Array.isArray(activeTrajectory?.predictedPath) &&
-    activeTrajectory.predictedPath.length > 0
-      ? [
-          Number(activeTrajectory.predictedPath[0].lat),
-          Number(activeTrajectory.predictedPath[0].lon),
-        ]
-      : activeVessel?.currentPosition || [-64.77, -64.08];
+  // Compute map center target safely: trajectory -> vessel -> Antarctic fallback
+  const firstValidTrajectoryPoint =
+    showTrajectory && Array.isArray(activeTrajectory?.predictedPath)
+      ? activeTrajectory.predictedPath.find((point) =>
+          normalizeCoordinatePair([point?.lat, point?.lon])
+        )
+      : null;
+
+  const trajectoryCenter = firstValidTrajectoryPoint
+    ? normalizeCoordinatePair([firstValidTrajectoryPoint.lat, firstValidTrajectoryPoint.lon])
+    : null;
+
+  const vesselPosition = normalizeCoordinatePair(activeVessel?.currentPosition);
+  const activeCenter = trajectoryCenter || vesselPosition || [-64.77, -64.08];
+
+  const safeStartCenter = startMarker
+    ? normalizeCoordinatePair([startMarker.lat, startMarker.lon])
+    : null;
+  const safeEndCenter = endMarker
+    ? normalizeCoordinatePair([endMarker.lat, endMarker.lon])
+    : null;
+
+  const trajectoryCurrentPosition = normalizeCoordinatePair(activeTrajectory?.currentPosition);
+  const predictedPositions = Array.isArray(activeTrajectory?.predictedPath)
+    ? activeTrajectory.predictedPath
+        .map((point) => normalizeCoordinatePair([point?.lat, point?.lon]))
+        .filter(Boolean)
+    : [];
 
   const vessel = {
-    name: activeVessel.name,
-    position: activeVessel.currentPosition,
+    name: activeVessel?.name || 'Research Vessel',
+    position: vesselPosition || [-64.77, -64.08],
     heading: "South-East",
-    speed: `${activeVessel.maxSpeedKnots} knots`,
-    status: activeVessel.status || "Navigating",
+    speed: `${activeVessel?.maxSpeedKnots ?? 0} knots`,
+    status: activeVessel?.status || "Navigating",
   };
 
   useEffect(() => {
-    if (mapRef.current && startMarker) {
-      mapRef.current.setView([startMarker.lat, startMarker.lon], mapRef.current.getZoom());
+    if (mapRef.current && safeStartCenter) {
+      mapRef.current.setView(safeStartCenter, mapRef.current.getZoom());
     }
-  }, [startMarker?.source]);
+  }, [safeStartCenter?.[0], safeStartCenter?.[1], startMarker?.source]);
 
   useEffect(() => {
-    if (mapRef.current && endMarker) {
-      mapRef.current.setView([endMarker.lat, endMarker.lon], mapRef.current.getZoom());
+    if (mapRef.current && safeEndCenter) {
+      mapRef.current.setView(safeEndCenter, mapRef.current.getZoom());
     }
-  }, [endMarker?.source]);
+  }, [safeEndCenter?.[0], safeEndCenter?.[1], endMarker?.source]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -443,12 +481,10 @@ export default function AntarcticMap({
                 <>
                   <Polyline
                     positions={[
-                      ...(Array.isArray(activeTrajectory.currentPosition)
-                        ? [[Number(activeTrajectory.currentPosition[0]), Number(activeTrajectory.currentPosition[1])]]
-                        : [[Number(activeTrajectory.predictedPath[0].lat), Number(activeTrajectory.predictedPath[0].lon)]]),
-                      ...activeTrajectory.predictedPath
-                        .map((pt) => [Number(pt.lat), Number(pt.lon)])
-                        .filter((pt) => Number.isFinite(pt[0]) && Number.isFinite(pt[1])),
+                      ...(trajectoryCurrentPosition
+                        ? [trajectoryCurrentPosition]
+                        : predictedPositions.slice(0, 1)),
+                      ...predictedPositions,
                     ]}
                     pathOptions={{
                       color: "#22d3ee",
@@ -510,8 +546,8 @@ export default function AntarcticMap({
           <RouteLayer routes={routes} />
 
           {/* Origin / Start Marker */}
-          {startMarker && (
-            <Marker position={[startMarker.lat, startMarker.lon]} icon={startIcon}>
+          {safeStartCenter && (
+            <Marker position={safeStartCenter} icon={startIcon}>
               <Tooltip permanent direction="top" offset={[0, -16]} className="antarctic-tooltip font-bold text-green-400">
                 START
               </Tooltip>
@@ -520,16 +556,16 @@ export default function AntarcticMap({
                   <strong className="text-green-500">Origin / Start</strong>
                   <hr />
                   <p><b>Source:</b> {startMarker.source}</p>
-                  <p><b>Lat:</b> {startMarker.lat.toFixed(4)}°</p>
-                  <p><b>Lon:</b> {startMarker.lon.toFixed(4)}°</p>
+                  <p><b>Lat:</b> {safeStartCenter[0].toFixed(4)}°</p>
+                  <p><b>Lon:</b> {safeStartCenter[1].toFixed(4)}°</p>
                 </div>
               </Popup>
             </Marker>
           )}
 
           {/* Destination / End Marker */}
-          {endMarker && (
-            <Marker position={[endMarker.lat, endMarker.lon]} icon={destIcon}>
+          {safeEndCenter && (
+            <Marker position={safeEndCenter} icon={destIcon}>
               <Tooltip permanent direction="top" offset={[0, -16]} className="antarctic-tooltip font-bold text-red-400">
                 DESTINATION
               </Tooltip>
@@ -538,8 +574,8 @@ export default function AntarcticMap({
                   <strong className="text-red-500">Destination / End</strong>
                   <hr />
                   <p><b>Source:</b> {endMarker.source}</p>
-                  <p><b>Lat:</b> {endMarker.lat.toFixed(4)}°</p>
-                  <p><b>Lon:</b> {endMarker.lon.toFixed(4)}°</p>
+                  <p><b>Lat:</b> {safeEndCenter[0].toFixed(4)}°</p>
+                  <p><b>Lon:</b> {safeEndCenter[1].toFixed(4)}°</p>
                 </div>
               </Popup>
             </Marker>
@@ -560,7 +596,7 @@ export default function AntarcticMap({
           />
 
           {/* Active Research Vessel Marker */}
-          <Marker key={`active-vessel-${activeVessel.id}-${activeVesselRisk?.level || 'unknown'}`} position={vessel.position} icon={createVesselIcon(activeVesselRisk?.level)}>
+          <Marker key={`active-vessel-${activeVessel?.id || 'unknown'}-${activeVesselRisk?.level || 'unknown'}`} position={vessel.position} icon={createVesselIcon(activeVesselRisk?.level)}>
             <Tooltip permanent direction="bottom" offset={[0, 22]} className="vessel-tooltip">
               🚢 {vessel.name}
             </Tooltip>
